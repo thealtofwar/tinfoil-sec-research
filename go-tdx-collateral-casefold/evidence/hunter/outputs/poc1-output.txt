@@ -1,0 +1,14 @@
+=== RUN   TestControl_ExactDuplicateKeyIsRejectedInGo
+    dupkey_control_test.go:25: exact duplicate tcbInfo (genuine first, forged last): err=tcbInfo response verification failed: could not verify response body using the signing certificate: x509: ECDSA verification failure
+--- PASS: TestControl_ExactDuplicateKeyIsRejectedInGo (0.00s)
+=== RUN   TestControl_GenuineCollateral
+    poc_test.go:129: genuine Intel collateral, current clock: err=TDX TCB info reported by Intel PCS failed TCB status check: no matching TCB level found
+--- PASS: TestControl_GenuineCollateral (0.01s)
+=== RUN   TestForged_TcbInfoCaseVariant
+    poc_test.go:170: forged (unsigned, case-variant) tcbinfo/enclaveidentity: err=<nil>
+--- PASS: TestForged_TcbInfoCaseVariant (0.00s)
+=== RUN   TestForged_QeMrsignerIsEnforcedFromUnsignedMember
+    poc_test.go:200: unsigned enclaveidentity.mrsigner=abab..: err=MRSIGNER value("dc9e2a7c6f948f17474e34a7fc43ed030f7c1563f1babddf6340c82e0e54a8c5") in QE Report is not equal to MRSIGNER value({"\xab\xab\xab\xab\xab\xab\xab\xab\xab\xab\xab\xab\xab\xab\xab\xab\xab\xab\xab\xab\xab\xab\xab\xab\xab\xab\xab\xab\xab\xab\xab\xab"}) in Intel PCS's reported QE Identity
+--- PASS: TestForged_QeMrsignerIsEnforcedFromUnsignedMember (0.00s)
+PASS
+ok  	poc1	0.023s

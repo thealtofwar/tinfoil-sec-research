@@ -1,0 +1,14 @@
+listen-port: 18443
+upstream-port: 8000
+tls-mode: self-signed
+hpke-key-file: /root/.claude/jobs/632f70ea/tmp/work/hunt-enclave-services-b/poc-cee-snapshot/shim/hpke_key.json
+cache-dir: /root/.claude/jobs/632f70ea/tmp/work/hunt-enclave-services-b/poc-cee-snapshot/shim/cache
+paths:
+  - /exec
+  - /read
+  - /write
+  - /snapshot
+  - /restore
+  - /sync-uploads/manifest
+  - /sync-uploads/blobs
+  - /health

@@ -1,0 +1,38 @@
+=== RUN   TestPoC_DevBoxReleasesPassCodeProvenanceAndFreshness
+=== RUN   TestPoC_DevBoxReleasesPassCodeProvenanceAndFreshness/tinfoilsh/confidential-ubuntu-tinfoil-config
+    poc_devbox_provenance_test.go:44: ACCEPTED code artifact: repo=tinfoilsh/confidential-ubuntu-tinfoil-config tag=v0.1.1 commit=77c9e646f8535abed7f5a8aa928a10414a6e5bc7 subject=tinfoil-deployment.json
+    poc_devbox_provenance_test.go:45:   measurement: SNP=4ecdebbf560491da... RTMR1=1d24ed393a65d790... RTMR2=851864c7c3cd3916... shape={CPUs:4 MemoryMB:16384 GPUs:0x135b1720abc8 Disks:4} gpus=0
+    poc_devbox_provenance_test.go:56:   measured config: inbound-ports: [22]
+    poc_devbox_provenance_test.go:56:   measured config: cvm_admin: true
+    poc_devbox_provenance_test.go:56:   measured config: ports: ["22:22"]
+    poc_devbox_provenance_test.go:56:   measured config: upstream-port: 22
+    poc_devbox_provenance_test.go:56:   measured config: authenticated: false
+    poc_devbox_provenance_test.go:65:   freshness witness: ACCEPTED, witnessed at 2026-10-07T18:03:26Z (expires 2026-10-14T18:03:26Z, now 2026-10-08T01:20:15Z)
+=== RUN   TestPoC_DevBoxReleasesPassCodeProvenanceAndFreshness/tinfoilsh/confidential-ubuntu-config
+    poc_devbox_provenance_test.go:44: ACCEPTED code artifact: repo=tinfoilsh/confidential-ubuntu-config tag=v0.1.2 commit=81cbc461bb7873c5a513e6adbb29966d35108f3d subject=tinfoil-deployment.json
+    poc_devbox_provenance_test.go:45:   measurement: SNP=ed72d8fb57965408... RTMR1=1d24ed393a65d790... RTMR2=e6abc102d89b81a0... shape={CPUs:4 MemoryMB:65536 GPUs:0x135b176ea2d8 Disks:4} gpus=0
+    poc_devbox_provenance_test.go:56:   measured config: inbound-ports: [22]
+    poc_devbox_provenance_test.go:56:   measured config: cvm_admin: true
+    poc_devbox_provenance_test.go:56:   measured config: ports: ["22:22"]
+    poc_devbox_provenance_test.go:56:   measured config: upstream-port: 22
+    poc_devbox_provenance_test.go:56:   measured config: authenticated: false
+    poc_devbox_provenance_test.go:65:   freshness witness: ACCEPTED, witnessed at 2026-10-06T02:29:03Z (expires 2026-10-13T02:29:03Z, now 2026-10-08T01:20:15Z)
+=== RUN   TestPoC_DevBoxReleasesPassCodeProvenanceAndFreshness/tinfoilsh/confidential-sandbox-gpu
+    poc_devbox_provenance_test.go:44: ACCEPTED code artifact: repo=tinfoilsh/confidential-sandbox-gpu tag=v0.1.1 commit=2c4db132d527a6ae67e009af20d14b0ca2ab65e0 subject=tinfoil-deployment.json
+    poc_devbox_provenance_test.go:45:   measurement: SNP=0a35832ad4e2c09a... RTMR1=3246c8c822eade4b... RTMR2=01ee82bcf2fd846d... shape={CPUs:32 MemoryMB:524288 GPUs:0x135b17780f40 Disks:5} gpus=8
+    poc_devbox_provenance_test.go:56:   measured config: upstream-port: 8080
+    poc_devbox_provenance_test.go:56:   measured config: authenticated: false
+    poc_devbox_provenance_test.go:62:   freshness witness: REJECTED (freshness witness is stale)
+=== RUN   TestPoC_DevBoxReleasesPassCodeProvenanceAndFreshness/tinfoilsh/confidential-model-router
+    poc_devbox_provenance_test.go:44: ACCEPTED code artifact: repo=tinfoilsh/confidential-model-router tag=v0.0.155 commit=4b4957b77ed0517d872202d2c1b9bee9e072b341 subject=tinfoil-deployment.json
+    poc_devbox_provenance_test.go:45:   measurement: SNP=b3be62c7199d8e4d... RTMR1=a787299fe2e84295... RTMR2=6fae21bf6875abed... shape={CPUs:8 MemoryMB:16384 GPUs:0x135b175d4588 Disks:3} gpus=0
+    poc_devbox_provenance_test.go:56:   measured config: upstream-port: 8089
+    poc_devbox_provenance_test.go:56:   measured config: authenticated: true
+    poc_devbox_provenance_test.go:65:   freshness witness: ACCEPTED, witnessed at 2026-10-05T00:44:02Z (expires 2026-10-12T00:44:02Z, now 2026-10-08T01:20:15Z)
+--- PASS: TestPoC_DevBoxReleasesPassCodeProvenanceAndFreshness (0.10s)
+    --- PASS: TestPoC_DevBoxReleasesPassCodeProvenanceAndFreshness/tinfoilsh/confidential-ubuntu-tinfoil-config (0.03s)
+    --- PASS: TestPoC_DevBoxReleasesPassCodeProvenanceAndFreshness/tinfoilsh/confidential-ubuntu-config (0.02s)
+    --- PASS: TestPoC_DevBoxReleasesPassCodeProvenanceAndFreshness/tinfoilsh/confidential-sandbox-gpu (0.02s)
+    --- PASS: TestPoC_DevBoxReleasesPassCodeProvenanceAndFreshness/tinfoilsh/confidential-model-router (0.02s)
+PASS
+ok  	github.com/tinfoilsh/tinfoil-go/verify/internal/provenance	0.118s

@@ -1,0 +1,14 @@
+report bytes [33m1184[39m
+control                                                      -> ACCEPTED 09ef32acf90fcfeb hpke 3565781f4ee796cf
+report_data[32] flipped (HPKE key)                           -> rejected: Attestation report signature is invalid: The report was not signed by the expected VCEK key
+report_data[0] flipped (TLS fp)                              -> rejected: Attestation report signature is invalid: The report was not signed by the expected VCEK key
+measurement byte flipped                                     -> rejected: Attestation report signature is invalid: The report was not signed by the expected VCEK key
+debug policy bit set (bit 19)                                -> rejected: Attestation report signature is invalid: The report was not signed by the expected VCEK key
+signature r byte flipped                                     -> rejected: Attestation report signature is invalid: The report was not signed by the expected VCEK key
+trailing 100 bytes appended                                  -> ACCEPTED 09ef32acf90fcfeb hpke 3565781f4ee796cf
+version set to 2 (v2 parsing, family bytes must be zero)     -> rejected: Invalid attestation report: Reserved bytes in version section are not zeroed
+vmpl = 3                                                     -> rejected: Attestation report signature is invalid: The report was not signed by the expected VCEK key
+host_data set to 0xff..                                      -> rejected: Attestation report signature is invalid: The report was not signed by the expected VCEK key
+chip_id zero + mask_chip_key                                 -> rejected: Attestation report signature is invalid: The report was not signed by the expected VCEK key
+signer_info = VLEK(1<<2)                                     -> rejected: Unsupported signing key type: This verifier only supports VCEK-signed attestation reports (got signing key typ
+vcek = ASK cert (DER of hardcoded ASK)                       -> rejected: Invalid VCEK certificate: Expected common name "SEV-VCEK", got "SEV-Genoa"

@@ -1,0 +1,2 @@
+I. no integratedTime, no SET, no checkpoint, garbage rfc3161 timestamp         -> rejected: request past end of buffer
+J. no integratedTime, no SET, no checkpoint, rfc3161Timestamps: [] (control, expect reject) -> rejected: Rekor v2 bundles require a timestamp for verification.

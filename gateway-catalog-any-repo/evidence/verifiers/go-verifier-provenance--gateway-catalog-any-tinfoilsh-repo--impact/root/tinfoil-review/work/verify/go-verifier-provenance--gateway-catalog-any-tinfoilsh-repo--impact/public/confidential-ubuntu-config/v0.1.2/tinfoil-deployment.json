@@ -1,0 +1,29 @@
+{
+    "snp_measurement": "ed72d8fb5796540809945ecf8857f949389472d01065ca22f9f68f5949ad03f79b9294b38fdee72754ecbce7654c7999",
+    "tdx_measurement": {
+        "rtmr1": "1d24ed393a65d7904860874e517c44242dd984ea9c8094ab346f70e996f79a87c3048cea0af5d7a2641d2a93f5b8f613",
+        "rtmr2": "e6abc102d89b81a09202864f43ff0ab8aa292d208e19adc3fe6c83baed83892a14ecb10c31d3e3c0a126cf5fe14ea70a"
+    },
+    "firmware": {
+        "sev_snp": {
+            "type": "ovmf",
+            "version": "v0.0.4",
+            "sha256": "78c890175928167a1bc095d4bf3bb4ad81de80cd7e4e9e683477fc359119c1c4"
+        }
+    },
+    "vm_shape": {
+        "cpus": 4,
+        "memory_mb": 65536,
+        "gpus": 0,
+        "disks": 4
+    },
+    "cmdline": "readonly=on pci=realloc,nocrs modprobe.blacklist=nouveau nouveau.modeset=0 root=/dev/mapper/root roothash=844938e9174dab6302b327c436f805d35ad3ecbe967637d48a32e97e23789db5 tinfoil-config-hash=29d4a13e5764adec89cb9558fc26ada7de51a3d08f6ae3dc5a0de6d16333a31f",
+    "hashes": {
+        "version": "v0.14.12",
+        "root": "844938e9174dab6302b327c436f805d35ad3ecbe967637d48a32e97e23789db5",
+        "initrd": "2832eacfeb6218121f66327b733e9a84cc83da561e7327193785ad16fc75705c",
+        "kernel": "c1907de5bb43040b4ed340e19325c7d4ee7776025ed50d6abc1f6bbb76e5e46e",
+        "raw": "bc8e8d0cf65154040d616db4b7d729f290d812b31670b6b079fea418373c8905"
+    },
+    "config": "Y3ZtLXZlcnNpb246IDAuMTQuMTIKY3B1czogNAptZW1vcnk6IDY1NTM2Cgpjdm0tbmV0d29yazoKICBpbmJvdW5kLXBvcnRzOiBbMjJdCgphdHRlc3RlZC1rZXlzOgogIC0gaWQ6IGhvc3Qtc3NoCiAgICBrZXk6IGVjZHNhLXAyNTYKICAtIGlkOiB0ZWxlcG9ydC1qb2luCiAgICBrZXk6IGVkMjU1MTkKCm5ldHdvcmtzOgogIGRldjoKICAgIGVncmVzczogb3BlbgoKdm9sdW1lczoKICAtIG5hbWU6IHdvcmtzcGFjZQogICAgZXhlYzogdHJ1ZQoKY29udGFpbmVyczoKICAtIG5hbWU6ICJ3b3Jrc3BhY2UiCiAgICBpbWFnZTogImdoY3IuaW8vdGluZm9pbHNoL2NvbmZpZGVudGlhbC11YnVudHUtcHJpdmF0ZUBzaGEyNTY6MjI2MzAwYmMyYTYwYzFiNjY0Mjc1M2U0YTdiZTZkNWU5MGE0NWE2MjkyZDVhZGM3Njg1Y2ZjNjJmNjYwOGY0NiIKICAgIHJlc3RhcnQ6IG9uLWZhaWx1cmUKICAgIGN2bV9hZG1pbjogdHJ1ZQogICAgc3RvcF9zaWduYWw6IFNJR1JUTUlOKzMKICAgIHN0b3BfdGltZW91dDogMTIwCiAgICBuZXR3b3JrczogW2Rldl0KICAgIHZvbHVtZXM6IFt3b3Jrc3BhY2U6L21udC9kaXNrXQogICAga2V5czogW2hvc3Qtc3NoLCB0ZWxlcG9ydC1qb2luXQoKICAgIHBvcnRzOiBbIjIyOjIyIl0KCiAgICB0bXBmczoKICAgICAgL3J1bjogInJ3LG5vc3VpZCxub2Rldixtb2RlPTc1NSIKCiAgICBoZWFsdGhjaGVjazoKICAgICAgdGVzdDogWyJDTUQiLCAiL2hlYWx0aGNoZWNrLnNoIl0KICAgICAgaW50ZXJ2YWw6IDVzCiAgICAgIHRpbWVvdXQ6IDVzCiAgICAgIHJldHJpZXM6IDEyCiAgICAgIHN0YXJ0X3BlcmlvZDogMzBzCgpzaGltOgogIHVwc3RyZWFtLXBvcnQ6IDIyCiAgYXV0aGVudGljYXRlZDogZmFsc2UK"
+}

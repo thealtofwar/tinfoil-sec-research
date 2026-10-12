@@ -1,0 +1,26 @@
+tinfoil: /root/tinfoil-review/work/python-sdk-verifier/venv/lib/python3.14/site-packages/tinfoil/attestation/collateral_tdx.py
+
+=== tcbInfo ===
+[1 genuine] ACCEPTED  signed-span==genuine:True  enforced!=signed:False  enforced evalNum=15 levels=['UpToDate', 'OutOfDate']
+   nested forgery passes strict no-duplicate-key parse at every level
+[2 nested decoy BEFORE forged top-level] ACCEPTED  signed-span==genuine:True  enforced!=signed:True  enforced evalNum=1234 levels=['UpToDate']
+[3 nested decoy AFTER forged top-level] REJECTED  CollateralError: TCB Info signature verification failed: signature does not match content
+[4 nested decoy with 1-byte tamper of genuine copy] REJECTED  CollateralError: TCB Info signature verification failed: signature does not match content
+[5 decoy inside array (prefix char is '{')] ACCEPTED  signed-span==genuine:True  enforced!=signed:True  enforced evalNum=1234 levels=['UpToDate']
+
+=== enclaveIdentity ===
+[1 genuine] ACCEPTED  signed-span==genuine:True  enforced!=signed:False  enforced evalNum=15 mrsigner=DC9E2A7C..
+   nested forgery passes strict no-duplicate-key parse at every level
+[2 nested decoy BEFORE forged top-level] ACCEPTED  signed-span==genuine:True  enforced!=signed:True  enforced evalNum=1234 mrsigner=42424242..
+[3 nested decoy AFTER forged top-level] REJECTED  CollateralError: QE Identity signature verification failed: signature does not match content
+[4 nested decoy with 1-byte tamper of genuine copy] REJECTED  CollateralError: QE Identity signature verification failed: signature does not match content
+[5 decoy inside array (prefix char is '{')] ACCEPTED  signed-span==genuine:True  enforced!=signed:True  enforced evalNum=1234 mrsigner=42424242..
+
+=== fetch_tcb_info / fetch_qe_identity with mocked transport and empty cache dir ===
+fetch: tcb evalNum=1234 levels=['UpToDate'] qe mrsigner=42424242..  raw==nested:True
+cache files: ['tdx_qe_identity.json', 'tdx_tcb_info_50806f000000.json']
+cache body is the nested forgery: True
+cache hit, no network: tcb evalNum=1234 qe mrsigner=42424242..
+
+RESULTS: {'tcbInfo:genuine': True, 'tcbInfo:nested': True, 'tcbInfo:after': False, 'tcbInfo:tamper': False, 'tcbInfo:array': True, 'enclaveIdentity:genuine': True, 'enclaveIdentity:nested': True, 'enclaveIdentity:after': False, 'enclaveIdentity:tamper': False, 'enclaveIdentity:array': True, 'fetch': True, 'cache': True}
+MATCHES EXPECTED: True

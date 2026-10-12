@@ -1,0 +1,22 @@
+sandbox-containers-keyserver — PoC notes (2026-10-08, local only)
+
+Work copies (pristine repos untouched): ./cvmimage ./confidential-agent-sandbox ./keyserver
+./example-client-kms ./code-execution-environment
+
+PoC 1: unauthenticated CONNECT tunnel on confidential-agent-sandbox
+  file:   cvmimage/tinfoil/cmd/shim/poc_sandbox_tunnel_test.go
+  run:    source /root/tinfoil-review/env.sh
+          cd /root/tinfoil-review/work/sandbox-containers-keyserver/cvmimage/tinfoil
+          go test ./cmd/shim/ -run 'TestPoC_' -v -count=1
+  output: poc-sandbox-tunnel-output.txt
+  what it shows: the shipped NewShimServer (cvmimage HEAD 58b08de) built the way
+  cmd/shim/main.go builds it for shim.authenticated:false (validator == nil), with the
+  16 published ports parsed from confidential-agent-sandbox/tinfoil-config.yml (HEAD d78ec38),
+  opens a raw TCP stream to 127.0.0.1:<port> for an HTTP/2 CONNECT that carries no
+  Authorization header at all. All 16 ports answered (stub replied +PONG). Unpublished
+  port -> 404 (port enumeration). Controls: authenticated:true + validator -> 401;
+  authenticated:true without validator -> tunnels disabled (404).
+
+Other checks run:
+  keyserver: go build ./... && go test ./...  -> ok (HEAD 38f4a73, tinfoil-go v0.15.8-0.20260924183129-c001d64731ac)
+  crt.sh query for box2.tinfoil.sh: see crtsh-box2.json (public CT data; may be a 502 page if crt.sh was down)

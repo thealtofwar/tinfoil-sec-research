@@ -1,0 +1,82 @@
+### proxy version/bind
+"address":"127.0.0.1:33301"
+"version":"0.3.0-rc.2"
+
+### (a) local GET /v1/models with correct Host
+HTTP/1.1 200 OK
+Content-Type: application/json
+Date: Thu, 08 Oct 2026 01:28:35 GMT
+Content-Length: 87
+
+{"data":[{"id":"gpt-oss-120b","object":"model","owned_by":"tinfoil"}],"object":"list"}
+
+### (b) DNS-rebinding shape: Host: attacker.test:33301
+HTTP/1.1 400 Bad Request
+Content-Type: text/plain; charset=utf-8
+X-Content-Type-Options: nosniff
+Date: Thu, 08 Oct 2026 01:28:35 GMT
+Content-Length: 20
+
+invalid Host header
+
+### (b2) Host: localhost:33301 (allowed alias), Host: 127.0.0.1 (portless)
+localhost:200
+portless:400
+
+### (c) CORS preflight for a credentialed JSON POST from https://evil.test
+HTTP/1.1 400 Bad Request
+Content-Type: text/plain; charset=utf-8
+X-Content-Type-Options: nosniff
+Date: Thu, 08 Oct 2026 01:28:35 GMT
+Content-Length: 107
+
+configuration error: model "" has no valid bare tinfoilsh/ repository with replicas in the gateway catalog
+
+### (d) simple GET with Origin (what a no-cors fetch sees): any Access-Control-Allow-Origin?
+HTTP/1.1 200 OK
+Content-Type: application/json
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+### (e) simple no-cors JSON POST (Content-Type text/plain), no Authorization
+HTTP/1.1 400 Bad Request
+Content-Type: text/plain; charset=utf-8
+X-Content-Type-Options: nosniff
+Date: Thu, 08 Oct 2026 01:28:35 GMT
+Content-Length: 107
+
+configuration error: model "" has no valid bare tinfoilsh/ repository with replicas in the gateway catalog
+
+### (f) simple no-cors multipart POST (form upload), no Authorization
+HTTP/1.1 502 Bad Gateway
+Date: Thu, 08 Oct 2026 01:28:36 GMT
+Content-Length: 0
+
+
+### (g) JSON POST with Authorization (what a NATIVE local client sends)
+HTTP/1.1 502 Bad Gateway
+Date: Thu, 08 Oct 2026 01:28:37 GMT
+Content-Length: 0
+
+
+### proxy log lines mentioning the forwarded requests / errors
+{"host":"127.0.0.1:38443","level":"debug","method":"OPTIONS","msg":"Outgoing request to upstream","path":"/v1/chat/completions","time":"2026-10-08T01:28:35Z"}
+{"host":"127.0.0.1:38443","level":"error","method":"OPTIONS","msg":"Request to upstream failed","path":"/v1/chat/completions","time":"2026-10-08T01:28:35Z"}
+{"error":"configuration error: model \"\" has no valid bare tinfoilsh/ repository with replicas in the gateway catalog","level":"error","msg":"proxy error","time":"2026-10-08T01:28:35Z"}
+{"host":"127.0.0.1:38443","level":"debug","method":"POST","msg":"Outgoing request to upstream","path":"/v1/chat/completions","time":"2026-10-08T01:28:35Z"}
+{"host":"127.0.0.1:38443","level":"error","method":"POST","msg":"Request to upstream failed","path":"/v1/chat/completions","time":"2026-10-08T01:28:35Z"}
+{"error":"configuration error: model \"\" has no valid bare tinfoilsh/ repository with replicas in the gateway catalog","level":"error","msg":"proxy error","time":"2026-10-08T01:28:35Z"}
+{"host":"127.0.0.1:38443","level":"debug","method":"POST","msg":"Outgoing request to upstream","path":"/v1/audio/transcriptions","time":"2026-10-08T01:28:35Z"}
+{"host":"127.0.0.1:38443","level":"error","method":"POST","msg":"Request to upstream failed","path":"/v1/audio/transcriptions","time":"2026-10-08T01:28:36Z"}
+{"error":"fetch error: HTTP GET https://127.0.0.1:38443/.well-known/tinfoil-attestation?nonce=027d14bc63d8f9dd5a0a2e7119816d88ddd4d73c65b1e9c12152d954939d18cc\u0026enclave=127.0.0.1%3A38444: 401 401 Unauthorized\nfetch error: HTTP GET https://127.0.0.1:38443/.well-known/tinfoil-attestation?nonce=bbf9b750fbc75a6e0650718e4c70c2a3d2c4fe8f12247108891f0a18af031b87\u0026enclave=127.0.0.1%3A38444: 401 401 Unauthorized","level":"error","msg":"proxy error","time":"2026-10-08T01:28:36Z"}
+{"host":"127.0.0.1:38443","level":"debug","method":"POST","msg":"Outgoing request to upstream","path":"/v1/chat/completions","time":"2026-10-08T01:28:36Z"}
+{"host":"127.0.0.1:38443","level":"error","method":"POST","msg":"Request to upstream failed","path":"/v1/chat/completions","time":"2026-10-08T01:28:37Z"}
+{"error":"fetch error: HTTP GET https://127.0.0.1:38443/.well-known/tinfoil-attestation?nonce=bc98c1c949071fcda427adad7b8a1b77e54d74019c5488e7a847053ae81bd925\u0026enclave=127.0.0.1%3A38444: 401 401 Unauthorized\nfetch error: HTTP GET https://127.0.0.1:38443/.well-known/tinfoil-attestation?nonce=7fd5bc674f400036c4d029d198a89ddeca0aaf098cf3109d2ca53604ea1030b2\u0026enclave=127.0.0.1%3A38444: 401 401 Unauthorized","level":"error","msg":"proxy error","time":"2026-10-08T01:28:37Z"}
+
+### mock gateway log (what the gateway received)
+2026/10/08 01:28:34 mock gateway listening on https://127.0.0.1:38443
+2026/10/08 01:28:35 GATEWAY GET /catalog host="127.0.0.1:38443" origin=""
+2026/10/08 01:28:35 GATEWAY GET /.well-known/tinfoil-attestation?nonce=bbf9b750fbc75a6e0650718e4c70c2a3d2c4fe8f12247108891f0a18af031b87&enclave=127.0.0.1%3A38444 host="127.0.0.1:38443" headers={"Accept-Encoding":["gzip"],"Tinfoil-Sdk":["tinfoil-go"],"Tinfoil-Sdk-Version":["0.16.1"],"User-Agent":["Go-http-client/2.0"]} bodylen=0
+2026/10/08 01:28:36 GATEWAY GET /.well-known/tinfoil-attestation?nonce=027d14bc63d8f9dd5a0a2e7119816d88ddd4d73c65b1e9c12152d954939d18cc&enclave=127.0.0.1%3A38444 host="127.0.0.1:38443" headers={"Accept-Encoding":["gzip"],"Tinfoil-Sdk":["tinfoil-go"],"Tinfoil-Sdk-Version":["0.16.1"],"User-Agent":["Go-http-client/2.0"]} bodylen=0
+2026/10/08 01:28:36 GATEWAY GET /.well-known/tinfoil-attestation?nonce=7fd5bc674f400036c4d029d198a89ddeca0aaf098cf3109d2ca53604ea1030b2&enclave=127.0.0.1%3A38444 host="127.0.0.1:38443" headers={"Accept-Encoding":["gzip"],"Tinfoil-Sdk":["tinfoil-go"],"Tinfoil-Sdk-Version":["0.16.1"],"User-Agent":["Go-http-client/2.0"]} bodylen=0
+2026/10/08 01:28:37 GATEWAY GET /.well-known/tinfoil-attestation?nonce=bc98c1c949071fcda427adad7b8a1b77e54d74019c5488e7a847053ae81bd925&enclave=127.0.0.1%3A38444 host="127.0.0.1:38443" headers={"Accept-Encoding":["gzip"],"Tinfoil-Sdk":["tinfoil-go"],"Tinfoil-Sdk-Version":["0.16.1"],"User-Agent":["Go-http-client/2.0"]} bodylen=0

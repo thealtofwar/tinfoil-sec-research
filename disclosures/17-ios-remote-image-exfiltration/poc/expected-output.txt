@@ -1,0 +1,181 @@
+# Captured 2026-10-11 from ./trace.sh (static; no iOS runtime available here)
+# tinfoil-ios cd5824e, textual 5b20cd9 (v0.0.11)
+
+## 1. App pins textual 0.0.11 @ 5b20cd9
+
+== /root/tinfoil-review/repos/tinfoil-ios/TinfoilChat.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved:131,137
+          "identity" : "textual",
+          "kind" : "remoteSourceControl",
+          "location" : "https://github.com/tinfoilsh/textual",
+          "state" : {
+            "revision" : "5b20cd9fc3a06a326cf97fd3c5b8a1dfa3ca2c38",
+            "version" : "0.0.11"
+          }
+
+## 2. Assistant markdown is rendered with StructuredText(markdown:) and no loader override
+
+== /root/tinfoil-review/repos/tinfoil-ios/TinfoilChat/Views/LaTeXMarkdownView.swift:22,36
+    private func citationStructuredText(
+        _ markdown: String,
+        isStreaming: Bool,
+        citationUrls: Set<String>?,
+        textSelectionEnabled: Bool
+    ) -> some View {
+        StructuredText(markdown: markdown)
+            .textual.highlighterTheme(isStreaming ? .plain : .default)
+            .textual.citations(isStreaming ? [] : (citationUrls ?? []))
+            .textual.citationFaviconProvider(citationFaviconData)
+            .if(textSelectionEnabled) { view in
+                view.textual.textSelection(.enabled)
+            }
+            .fixedSize(horizontal: false, vertical: true)
+    }
+
+== assistant render sites (MessageView.swift)
+    454:                    LaTeXMarkdownView(
+    684:                                    LaTeXMarkdownView(
+    720:                            LaTeXMarkdownView(
+    788:                                LaTeXMarkdownView(
+    1599:        StructuredText(markdown: content)
+    2076:            LaTeXMarkdownView(
+
+== loader overrides anywhere in the app (expect none):
+    none
+== ATS exceptions (expect none => https:// to any host allowed):
+    none
+
+## 3. Textual: StructuredText wraps every parsed string in WithAttachments
+
+== /root/tinfoil-review/work/ios-swift/textual/Sources/Textual/StructuredText/StructuredText.swift:116,128
+      public var body: some View {
+        let attributedString = (try? parser.attributedString(for: markup)) ?? AttributedString()
+        WithAttachments(attributedString) {
+          WithCitations($0) {
+            BlockContent(content: $0)
+              .modifier(TextSelectionInteraction())
+              .modifier(TextSelectionCoordination())
+          }
+        }
+        .coordinateSpace(.textContainer)
+        // Disable line limit to avoid per-fragment truncation
+        .lineLimit(nil)
+      }
+
+## 4. WithAttachments resolves every imageURL run in .task(id:) as soon as the text renders (also mid-stream)
+
+== /root/tinfoil-review/work/ios-swift/textual/Sources/Textual/Internal/Attachment/WithAttachments.swift:33,51
+      var body: some View {
+        let needsAttachmentResolution = attributedString.containsValues(
+          for: [\.imageURL, \.textual.emojiURL]
+        )
+    
+        if needsAttachmentResolution {
+          content(model.displayedAttributedString(for: attributedString))
+            .task(id: attributedString) {
+              await model.resolveAttachments(
+                in: attributedString,
+                imageAttachmentLoader: imageAttachmentLoader,
+                emojiAttachmentLoader: emojiAttachmentLoader,
+                environment: colorEnvironment
+              )
+            }
+        } else {
+          content(attributedString)
+        }
+      }
+
+== /root/tinfoil-review/work/ios-swift/textual/Sources/Textual/Internal/Attachment/WithAttachments.swift:86,95
+            for run in attributedString.runs {
+              if let imageURL = run.imageURL {
+                group.addTask {
+                  let attachment = try? await imageAttachmentLoader.attachment(
+                    for: imageURL,
+                    text: String(attributedString[run.range].characters[...]),
+                    environment: environment
+                  )
+                  return (attachment.map(AnyAttachment.init), run.range)
+                }
+
+## 5. Default image loader is the URL loader
+
+== /root/tinfoil-review/work/ios-swift/textual/Sources/Textual/Attachment/AttachmentLoader.swift:59,62
+    extension EnvironmentValues {
+      @Entry var imageAttachmentLoader: any AttachmentLoader = .image()
+      @Entry var emojiAttachmentLoader: any AttachmentLoader = .emoji()
+    }
+
+== /root/tinfoil-review/work/ios-swift/textual/Sources/Textual/Attachment/URLAttachmentLoader.swift:19,28
+      public func attachment(
+        for url: URL,
+        text: String,
+        environment: ColorEnvironmentValues
+      ) async throws -> some Attachment {
+        let imageURL = URL(string: url.absoluteString, relativeTo: baseURL) ?? url
+        let image = try await ImageLoader.shared.image(for: imageURL)
+    
+        return content(image, text)
+      }
+
+## 6. ImageLoader = URLSession(.default + Accept: image/*).data(from:) - the GET is sent before any content check
+
+== /root/tinfoil-review/work/ios-swift/textual/Sources/Textual/Internal/Image/ImageLoader.swift:20,22
+      init(session: URLSession = URLSession(configuration: .imageLoading)) {
+        self.init(cache: NSCache(), data: session.data(from:))
+      }
+
+== /root/tinfoil-review/work/ios-swift/textual/Sources/Textual/Internal/Image/ImageLoader.swift:76,86
+    extension URLSessionConfiguration {
+      fileprivate static var imageLoading: URLSessionConfiguration {
+        let configuration = Self.default
+    
+        configuration.requestCachePolicy = .returnCacheDataElseLoad
+        configuration.timeoutIntervalForRequest /= 2
+        configuration.httpAdditionalHeaders = ["Accept": "image/*"]
+    
+        return configuration
+      }
+    }
+
+## 7. Parser: Foundation AttributedString(markdown:) with default (full) options => imageURL runs for ![alt](url)
+
+== /root/tinfoil-review/work/ios-swift/textual/Sources/Textual/MarkdownParser/AttributedStringMarkdownParser.swift:44,52
+        let preprocessed = InlineHTMLPreprocessor.convert(input)
+        let attributedString = try processor.expand(
+          AttributedString(
+            markdown: preprocessed,
+            including: \.textual,
+            options: options,
+            baseURL: baseURL
+          )
+        )
+== the app itself relies on Foundation producing imageURL runs for assistant markdown:
+    SpeechTextProcessor.swift:50:                guard run.imageURL == nil, inline.intersection([.inlineHTML, .blockHTML]).isEmpty else { continue }
+    SpeechTextTests.swift:38:        #expect(try SpeechTextProcessor.prepare("Answer[^1]. ![picture](https://image.com) https://example.com\n\n[^1]: Citation details") == "Answer.")
+
+## 8. Attacker text reaches the model by default: web search on, tinfoil web-search events requested
+    ChatModels.swift:75:    var webSearchEnabled: Bool = true
+    ChatModels.swift:149:            webSearchEnabled: webSearchEnabled
+    ChatModels.swift:185:        webSearchEnabled: Bool = true)
+
+== /root/tinfoil-review/repos/tinfoil-ios/TinfoilChat/ViewModels/ChatViewModel.swift:1746,1753
+                    client = try await TinfoilAI.create(
+                        apiKeyProvider: { SessionTokenManager.shared.currentToken },
+                        // Opt into the router's inline progress markers so
+                        // live web search and URL-fetch status drives the
+                        // same WebSearchState / URLFetchState UI the app
+                        // already renders, without requiring a separate
+                        // auxiliary stream.
+                        tinfoilEvents: [.webSearch],
+
+## 9. GenUI: render_image -> AsyncImage on any https URL (only if the control plane enables the widget)
+
+== /root/tinfoil-review/repos/tinfoil-ios/TinfoilChat/Views/GenUI/GenUIStyle.swift:95,103
+    struct GenUIRemoteImage: View {
+        let url: String
+        let isDarkMode: Bool
+        var contentMode: ContentMode = .fill
+    
+        var body: some View {
+            if let parsed = URL(string: url), parsed.scheme?.lowercased() == "https" {
+                AsyncImage(url: parsed) { phase in
+                    switch phase {

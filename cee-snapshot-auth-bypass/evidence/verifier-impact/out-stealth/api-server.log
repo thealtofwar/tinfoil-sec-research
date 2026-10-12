@@ -1,0 +1,6 @@
+2026/10/07 18:25:07 api server listening on :8000
+2026/10/07 18:25:08 api-server: gating /snapshot — cannot snapshot a warm container (410)
+2026/10/07 18:25:08 api-server: gating /read — missing container auth token (401)
+2026/10/07 18:25:08 api-server: gating /read — container auth token mismatch (403)
+2026/10/07 18:25:09 api-server: gating /snapshot — container session ended (410)
+2026/10/07 18:25:12 api-server: gating /read — container session ended (410)

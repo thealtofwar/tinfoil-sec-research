@@ -1,0 +1,4 @@
+/root/tinfoil-review/work/js-sdk-verifier/tinfoil-conformance/vectors/sigstore/001-happy-path-snp-tdx-multiplatform/input.json
+  tinfoil-go: REJECTED: code predicate: code predicate declares no vm_shape
+/root/tinfoil-review/work/js-sdk-verifier/new-vectors/sigstore/094-rekor-entry-unsigned-no-checkpoint-no-promise/input.json
+  tinfoil-go: REJECTED: verifying bundle: parsing bundle: validation error: inclusion proof missing required checkpoint

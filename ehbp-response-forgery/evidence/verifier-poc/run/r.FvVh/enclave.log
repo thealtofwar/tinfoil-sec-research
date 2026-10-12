@@ -1,0 +1,2 @@
+2026/10/07 18:30:17 [enclave] listening on 127.0.0.1:35379 pubkey=29b749a19cbb7d5d9ab08a956425a637b1d077d0137ecc60be8abc7638be7878
+2026/10/07 18:30:17 [enclave] POST /v1/chat/completions decrypted-body={"cache_salt":"mvUZW7ZuuuUK_5qd-JMzA_v4Fi6kOiZW8hK8ajG1Os0","messages":[{"content":"my secret prompt","role":"user"}],"model":"llama3-3-70b"}

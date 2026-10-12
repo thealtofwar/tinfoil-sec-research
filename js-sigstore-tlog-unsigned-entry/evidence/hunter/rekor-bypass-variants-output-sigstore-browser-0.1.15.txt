@@ -1,0 +1,8 @@
+A. no SET, proof without checkpoint, logId = Rekor v2 log2025-1 id             -> rejected: Invalid bundle: inclusion proof
+B. no SET, proof WITH checkpoint but checkpoint.envelope = "" (empty)          -> rejected: Missing checkpoint in inclusion proof
+C. no SET, proof with checkpoint = {} (no envelope)                            -> rejected: Invalid bundle: inclusion proof
+D. no SET, proof without checkpoint, logIndex/treeSize huge                    -> rejected: Invalid bundle: inclusion proof
+E. no SET, no checkpoint, canonicalizedBody rewritten (kind dsse, sig+payloadHash consistent) -> rejected: Invalid bundle: inclusion proof
+F. two entries, both unsigned (different logIndex)                             -> rejected: Invalid bundle: inclusion proof
+G. mediaType bogus (-> treated as v0.1), SET removed, proof present no checkpoint -> rejected: Invalid bundle: inclusion proof
+H. timestampVerificationData removed entirely, no SET, no checkpoint           -> rejected: Invalid bundle: inclusion proof

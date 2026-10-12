@@ -1,0 +1,205 @@
+# iOS zero-click remote-image fetch trace (captured 2026-10-08T06:02:25Z)
+# pristine HEADs: tinfoil-ios cd5824e; textual pinned 0.0.11 = 5b20cd9
+
+## 1. tinfoil-ios pins textual 0.0.11 (TinfoilChat.xcodeproj/.../Package.resolved)
+131:      "identity" : "textual",
+132-      "kind" : "remoteSourceControl",
+133-      "location" : "https://github.com/tinfoilsh/textual",
+134-      "state" : {
+135-        "revision" : "5b20cd9fc3a06a326cf97fd3c5b8a1dfa3ca2c38",
+136-        "version" : "0.0.11"
+137-      }
+
+## 2. textual default image attachment loader is the URL loader (Sources/Textual/Attachment/AttachmentLoader.swift)
+59-extension EnvironmentValues {
+60:  @Entry var imageAttachmentLoader: any AttachmentLoader = .image()
+61-  @Entry var emojiAttachmentLoader: any AttachmentLoader = .emoji()
+62-}
+
+## 3. URLAttachmentLoader fetches every imageURL run through ImageLoader (Sources/Textual/Attachment/URLAttachmentLoader.swift)
+  public func attachment(
+    for url: URL,
+    text: String,
+    environment: ColorEnvironmentValues
+  ) async throws -> some Attachment {
+    let imageURL = URL(string: url.absoluteString, relativeTo: baseURL) ?? url
+    let image = try await ImageLoader.shared.image(for: imageURL)
+
+    return content(image, text)
+  }
+}
+
+extension AttachmentLoader where Self == URLAttachmentLoader<ImageAttachment> {
+  /// Loads images referenced by URLs.
+  ///
+  /// - Parameter baseURL: The base URL used to resolve relative URLs.
+  public static func image(relativeTo baseURL: URL? = nil) -> Self {
+    .init(baseURL: baseURL, content: ImageAttachment.init(image:text:))
+  }
+}
+
+## 4. ImageLoader = URLSession.data(from:) with Accept: image/* (Sources/Textual/Internal/Image/ImageLoader.swift)
+  init(session: URLSession = URLSession(configuration: .imageLoading)) {
+    self.init(cache: NSCache(), data: session.data(from:))
+  }
+      let (data, response) = try await self.data(url)
+
+      // Notice that `data` and `file` URL schemes will not return `HTTPURLResponse`
+      if let httpResponse = response as? HTTPURLResponse {
+        guard 200..<300 ~= httpResponse.statusCode else {
+          throw URLError(.badServerResponse)
+        }
+      }
+extension URLSessionConfiguration {
+  fileprivate static var imageLoading: URLSessionConfiguration {
+    let configuration = Self.default
+
+    configuration.requestCachePolicy = .returnCacheDataElseLoad
+    configuration.timeoutIntervalForRequest /= 2
+    configuration.httpAdditionalHeaders = ["Accept": "image/*"]
+
+    return configuration
+  }
+}
+
+## 5. StructuredText resolves attachments automatically in .task (Sources/Textual/StructuredText/StructuredText.swift + Internal/Attachment/WithAttachments.swift)
+118:    WithAttachments(attributedString) {
+  var body: some View {
+    let needsAttachmentResolution = attributedString.containsValues(
+      for: [\.imageURL, \.textual.emojiURL]
+    )
+
+    if needsAttachmentResolution {
+      content(model.displayedAttributedString(for: attributedString))
+        .task(id: attributedString) {
+          await model.resolveAttachments(
+            in: attributedString,
+            imageAttachmentLoader: imageAttachmentLoader,
+            emojiAttachmentLoader: emojiAttachmentLoader,
+            environment: colorEnvironment
+          )
+        }
+    } else {
+      content(attributedString)
+    }
+  }
+        for run in attributedString.runs {
+          if let imageURL = run.imageURL {
+            group.addTask {
+              let attachment = try? await imageAttachmentLoader.attachment(
+                for: imageURL,
+                text: String(attributedString[run.range].characters[...]),
+                environment: environment
+              )
+              return (attachment.map(AnyAttachment.init), run.range)
+            }
+
+## 6. Parser: Foundation AttributedString(markdown:) with default (full) options -> imageURL runs for ![alt](url) (Sources/Textual/MarkdownParser/AttributedStringMarkdownParser.swift)
+    let preprocessed = InlineHTMLPreprocessor.convert(input)
+    let attributedString = try processor.expand(
+      AttributedString(
+        markdown: preprocessed,
+        including: \.textual,
+        options: options,
+        baseURL: baseURL
+      )
+    )
+  /// Creates a Markdown parser configured for full-document syntax.
+  public static func markdown(
+    baseURL: URL? = nil,
+    syntaxExtensions: [AttributedStringMarkdownParser.SyntaxExtension] = []
+  ) -> Self {
+    .init(
+      baseURL: baseURL,
+      syntaxExtensions: syntaxExtensions
+    )
+  }
+
+## 7. App renders assistant markdown with StructuredText and never sets an image loader (TinfoilChat/Views/LaTeXMarkdownView.swift, MessageView.swift)
+private func citationStructuredText(
+    _ markdown: String,
+    isStreaming: Bool,
+    citationUrls: Set<String>?,
+    textSelectionEnabled: Bool
+) -> some View {
+    StructuredText(markdown: markdown)
+        .textual.highlighterTheme(isStreaming ? .plain : .default)
+        .textual.citations(isStreaming ? [] : (citationUrls ?? []))
+        .textual.citationFaviconProvider(citationFaviconData)
+        .if(textSelectionEnabled) { view in
+            view.textual.textSelection(.enabled)
+        }
+        .fixedSize(horizontal: false, vertical: true)
+}
+--- grep for any loader override / image stripping in the app (expect none):
+(no imageAttachmentLoader/emojiAttachmentLoader override anywhere in the app)
+(no image stripping in the streaming processor/chunker)
+--- assistant message render sites:
+454:                    LaTeXMarkdownView(
+684:                                    LaTeXMarkdownView(
+720:                            LaTeXMarkdownView(
+788:                                LaTeXMarkdownView(
+2076:            LaTeXMarkdownView(
+
+## 8. No ATS exception (https required, so https://attacker works, http:// is blocked by ATS)
+(no NSAppTransportSecurity key: default ATS)
+
+## 9. GenUI widgets also auto-fetch model-supplied URLs once the turn completes
+--- GenUIStyle.swift GenUIRemoteImage (AsyncImage on any https URL):
+struct GenUIRemoteImage: View {
+    let url: String
+    let isDarkMode: Bool
+    var contentMode: ContentMode = .fill
+
+    var body: some View {
+        if let parsed = URL(string: url), parsed.scheme?.lowercased() == "https" {
+            AsyncImage(url: parsed) { phase in
+                switch phase {
+--- ImageWidget.swift (render_image) uses GenUIRemoteImage:
+98:                    GenUIRemoteImage(url: image.url, isDarkMode: isDarkMode, contentMode: .fill)
+101:                    GenUIRemoteImage(url: image.url, isDarkMode: isDarkMode, contentMode: .fit)
+227:            GenUIRemoteImage(url: image.url, isDarkMode: isDarkMode, contentMode: .fill)
+--- LinkPreviewWidget.swift fetches metadata for the model URL in .task (through the metadata enclave):
+        .task(id: args.url) {
+            await MainActor.run { metadata = nil }
+            do {
+                let result = try await LinkMetadataService.shared.metadata(for: args.url)
+                await MainActor.run { metadata = result }
+            } catch {
+                // Keep model-provided title; render the leaner card.
+            }
+        }
+--- GenUIToolCallView.swift renders the real widget when streaming ends:
+        if isStreaming || retryState == .generating {
+            return AnyView(streamingPlaceholder)
+        }
+        if let widget, case .valid(let data) = parsedResult,
+           let rendered = widget.renderInline(rawArgs: data, context: context) {
+            return AnyView(rendered)
+        }
+--- GenUIRegistry.swift: controlplane allowlist gates which tools are OFFERED; rendering looks up by name only:
+    /// Lookup by tool name.
+    func widget(named name: String) -> AnyGenUIWidget? {
+        widgetsByName[name]
+    }
+
+    /// True when `name` corresponds to a registered widget.
+    func isGenUIToolName(_ name: String) -> Bool {
+        widgetsByName[name] != nil
+    }
+
+    /// Widgets exposed to the model. The controlplane allowlist is the kill
+    /// switch, so its absence fails closed.
+    var effectiveWidgets: [AnyGenUIWidget] {
+        guard let config = configService.config else { return [] }
+        let allowedNames = Set(config.enabledWidgets)
+        return widgets.filter { allowedNames.contains($0.name) }
+    }
+
+## 10. What the model sees (exfiltratable): conversation, attachments converted to text, personalization profile, project context
+        isEnabled: Bool,
+        nickname: String,
+        profession: String,
+        traits: [String],
+        additionalContext: String
+    ) -> String? {

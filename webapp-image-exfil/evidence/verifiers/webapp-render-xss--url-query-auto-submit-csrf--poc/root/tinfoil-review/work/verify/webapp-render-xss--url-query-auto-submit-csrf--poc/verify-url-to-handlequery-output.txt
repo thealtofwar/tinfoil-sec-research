@@ -1,0 +1,40 @@
+
+ RUN  v4.1.10 /root/tinfoil-review/work/verify/webapp-render-xss--url-query-auto-submit-csrf--poc/tinfoil-webapp
+
+stderr | tests/poc/verify-url-to-handlequery.test.tsx > verifier: URL marker -> real useMessageQueue -> handleQuery > ?q= on /newchat reaches handleQuery with the attacker text and no DOM event
+An update to Harness inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stdout | tests/poc/verify-url-to-handlequery.test.tsx > verifier: URL marker -> real useMessageQueue -> handleQuery > ?q= on /newchat reaches handleQuery with the attacker text and no DOM event
+[verify] handleQuery received: VERIFIER: attacker-chosen prompt delivered purely via URL, no user gesture
+[verify] DOM user events observed: []
+
+stderr | tests/poc/verify-url-to-handlequery.test.tsx > verifier: URL marker -> real useMessageQueue -> handleQuery > #send=<b64> on / reaches handleQuery too
+An update to Harness inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ ✓ tests/poc/verify-url-to-handlequery.test.tsx > verifier: URL marker -> real useMessageQueue -> handleQuery > ?q= on /newchat reaches handleQuery with the attacker text and no DOM event 76ms
+ ✓ tests/poc/verify-url-to-handlequery.test.tsx > verifier: URL marker -> real useMessageQueue -> handleQuery > #send=<b64> on / reaches handleQuery too 57ms
+ ✓ tests/poc/verify-url-to-handlequery.test.tsx > verifier: URL marker -> real useMessageQueue -> handleQuery > negative control: no marker -> handleQuery never called 55ms
+
+ Test Files  1 passed (1)
+      Tests  3 passed (3)
+   Start at  01:28:40
+   Duration  1.23s (transform 200ms, setup 114ms, import 295ms, tests 191ms, environment 417ms)
+

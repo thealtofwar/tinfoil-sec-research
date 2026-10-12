@@ -1,0 +1,5 @@
+
+> @tinfoilsh/verifier@1.2.2 build
+> tsc
+
+exit 0

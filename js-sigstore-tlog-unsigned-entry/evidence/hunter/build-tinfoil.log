@@ -1,0 +1,5 @@
+
+> tinfoil@1.2.2 build
+> node scripts/generate-version.mjs && tsc
+
+exit 0

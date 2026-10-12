@@ -1,0 +1,194 @@
+# Tinfoil Proxy desktop auto-update: no code-signature check on Windows/Linux (evidence, collected 2026-10-08)
+
+## Public release v0.2.3 assets (https://api.github.com/repos/tinfoilsh/tinfoil-proxy/releases/latest)
+tag v0.2.3 published 2026-09-04T17:46:30Z
+  latest-linux.yml 343
+  latest-mac.yml 509
+  latest.yml 343
+  SHA256SUMS 468
+  tinfoil-proxy-darwin-amd64 28062128
+  tinfoil-proxy-darwin-arm64 26195296
+  tinfoil-proxy-linux-amd64 27054242
+  tinfoil-proxy-linux-arm64 25362594
+  Tinfoil-Proxy-Setup.exe 118446054
+  Tinfoil-Proxy-Setup.exe.blockmap 125325
+  Tinfoil-Proxy-universal.dmg 235961164
+  Tinfoil-Proxy-universal.dmg.blockmap 247152
+  Tinfoil-Proxy-universal.pkg 236194431
+  Tinfoil-Proxy-universal.zip 228027607
+  Tinfoil-Proxy-universal.zip.blockmap 239657
+  tinfoil-proxy-windows-amd64.exe 27835392
+  tinfoil-proxy_amd64.deb 106760936
+
+## Authenticode check (pe_sigcheck.py: IMAGE_DIRECTORY_ENTRY_SECURITY of the optional header)
+untrusted/release/Tinfoil-Proxy-Setup.exe: PE32 security_dir(offset=0x0, size=0) -> NO AUTHENTICODE SIGNATURE
+untrusted/release/tinfoil-proxy-windows-amd64.exe: PE32+ security_dir(offset=0x0, size=0) -> NO AUTHENTICODE SIGNATURE
+untrusted/release/nsis/resources/bin/tinfoil-proxy.exe: PE32+ security_dir(offset=0x0, size=0) -> NO AUTHENTICODE SIGNATURE
+
+## resources/app-update.yml extracted from Tinfoil-Proxy-Setup.exe ($PLUGINSDIR/app-64.7z) - note: no publisherName
+owner: tinfoilsh
+repo: tinfoil-proxy
+provider: github
+releaseType: release
+updaterCacheDirName: tinfoil-proxy-updater
+
+## latest.yml / latest-linux.yml (the only integrity data the updater has)
+version: 0.2.3
+files:
+  - url: Tinfoil-Proxy-Setup.exe
+    sha512: 0tLHVs6Swxsxvqo3PCo9lwwj9KWp0jIKPr24MXmSMvH7maHszTYPF5KTeIpjSkkwkSOhZzPrsFHKB7zzwBNFDA==
+    size: 118446054
+path: Tinfoil-Proxy-Setup.exe
+sha512: 0tLHVs6Swxsxvqo3PCo9lwwj9KWp0jIKPr24MXmSMvH7maHszTYPF5KTeIpjSkkwkSOhZzPrsFHKB7zzwBNFDA==
+releaseDate: '2026-09-04T17:47:47.763Z'
+version: 0.2.3
+files:
+  - url: tinfoil-proxy_amd64.deb
+    sha512: vQfiTouF9jhjInOHDmK2L+6pTkyneUKhWN6eYSpd94wVKCU6BENcZg3R4zM5iTdD08e/HbTt7cqZc2p1FV773w==
+    size: 106760936
+path: tinfoil-proxy_amd64.deb
+sha512: vQfiTouF9jhjInOHDmK2L+6pTkyneUKhWN6eYSpd94wVKCU6BENcZg3R4zM5iTdD08e/HbTt7cqZc2p1FV773w==
+releaseDate: '2026-09-04T17:46:35.295Z'
+
+## electron-updater 6.8.9 (pinned in app/package-lock.json) NsisUpdater.verifySignature
+    async verifySignature(tempUpdateFile) {
+        let publisherName;
+        try {
+            publisherName = (await this.configOnDisk.value).publisherName;
+            if (publisherName == null) {
+                return null;
+            }
+        }
+        catch (e) {
+            if (e.code === "ENOENT") {
+                // no app-update.yml
+                return null;
+            }
+            throw e;
+        }
+        return await this._verifyUpdateCodeSignature(Array.isArray(publisherName) ? publisherName : [publisherName], tempUpdateFile);
+    }
+
+## electron-updater 6.8.9 DebUpdater.doInstall / LinuxUpdater.runCommandWithSudoIfNeeded
+    doInstall(options) {
+        const installerPath = this.installerPath;
+        if (installerPath == null) {
+            this.dispatchError(new Error("No update filepath provided, can't quit and install"));
+            return false;
+        }
+        if (!this.hasCommand("dpkg") && !this.hasCommand("apt")) {
+            this.dispatchError(new Error("Neither dpkg nor apt command found. Cannot install .deb package."));
+            return false;
+        }
+        const priorityList = ["dpkg", "apt"];
+        const packageManager = this.detectPackageManager(priorityList);
+        try {
+            DebUpdater.installWithCommandRunner(packageManager, installerPath, this.runCommandWithSudoIfNeeded.bind(this), this._logger);
+        }
+        catch (error) {
+            this.dispatchError(error);
+            return false;
+        }
+    runCommandWithSudoIfNeeded(commandWithArgs) {
+        if (this.isRunningAsRoot()) {
+            this._logger.info("Running as root, no need to use sudo");
+            return this.spawnSyncLog(commandWithArgs[0], commandWithArgs.slice(1));
+        }
+        const { name } = this.app;
+        // Strip characters that could break shell quoting in the sudo dialog comment string
+        const safeName = name.replace(/["`$\\!\n\r;|&<>(){}*?[\]#~]/g, "");
+        const installComment = `"${safeName} would like to update"`;
+        const sudo = this.sudoWithArgs(installComment);
+        this._logger.info(`Running as non-root user, using sudo to install: ${sudo}`);
+        let wrapper = `"`;
+        // some sudo commands dont want the command to be wrapped in " quotes
+        if (/pkexec/i.test(sudo[0]) || sudo[0] === "sudo") {
+            wrapper = "";
+        }
+        return this.spawnSyncLog(sudo[0], [...(sudo.length > 1 ? sudo.slice(1) : []), `${wrapper}/bin/bash`, "-c", `'${commandWithArgs.join(" ")}'${wrapper}`]);
+    }
+
+## app-builder-lib 26.16.1 PublishManager: publisherName only written when a Windows signing identity exists
+        updaterCacheDirName: packager.appInfo.updaterCacheDirName,
+    };
+    if (packager.platform === index_1.Platform.WINDOWS && publishConfig.publisherName == null) {
+        const winPackager = packager;
+        const publisherName = winPackager.isForceCodeSigningVerification ? await (await winPackager.signingManager.value).computedPublisherName.value : undefined;
+        if (publisherName != null) {
+            publishConfig.publisherName = publisherName;
+        }
+    }
+    return publishConfig;
+}
+
+## tinfoil-proxy app/src/main/updater.ts
+     1	import { app, dialog } from 'electron'
+     2	import pkg from 'electron-updater'
+     3	
+     4	const { autoUpdater } = pkg
+     5	
+     6	const UPDATE_CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000
+     7	
+     8	let timer: NodeJS.Timeout | undefined
+     9	
+    10	export function startAutoUpdater(): void {
+    11	  if (!app.isPackaged) return
+    12	
+    13	  autoUpdater.autoDownload = true
+    14	  autoUpdater.autoInstallOnAppQuit = true
+    15	
+    16	  autoUpdater.on('update-downloaded', async (info) => {
+    17	    const choice = await dialog.showMessageBox({
+    18	      type: 'info',
+    19	      title: 'Tinfoil Proxy update ready',
+    20	      message: `Tinfoil Proxy ${info.version} is ready to install.`,
+    21	      detail:
+    22	        'The update will be applied the next time you quit Tinfoil Proxy, or you can restart now.',
+    23	      buttons: ['Restart now', 'Later'],
+    24	      defaultId: 0,
+    25	      cancelId: 1,
+    26	      noLink: true
+    27	    })
+    28	    if (choice.response === 0) {
+    29	      autoUpdater.quitAndInstall()
+    30	    }
+    31	  })
+    32	
+    33	  autoUpdater.on('error', (err) => {
+    34	    console.error('[updater]', err)
+    35	  })
+    36	
+    37	  const run = () => {
+    38	    autoUpdater.checkForUpdates().catch(() => undefined)
+    39	  }
+    40	
+    41	  run()
+    42	  timer = setInterval(run, UPDATE_CHECK_INTERVAL_MS)
+    43	}
+    44	
+    45	export function stopAutoUpdater(): void {
+    46	  if (timer) {
+    47	    clearInterval(timer)
+    48	    timer = undefined
+    49	  }
+    50	}
+
+## release workflow: only the macOS job receives CSC_LINK (Apple cert); Linux/Windows jobs get GH_TOKEN only
+      - name: Package & publish (macOS)
+        if: startsWith(matrix.os, 'macos')
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CSC_LINK: ${{ secrets.APPLE_CERTIFICATE_P12_BASE64 }}
+          CSC_KEY_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_P12_PASSWORD }}
+          CSC_INSTALLER_LINK: ${{ secrets.APPLE_INSTALLER_P12_BASE64 }}
+          CSC_INSTALLER_KEY_PASSWORD: ${{ secrets.APPLE_INSTALLER_P12_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: npm run ${{ matrix.package_script }} -- --publish always
+
+      - name: Package & publish (Linux/Windows)
+        if: ${{ !startsWith(matrix.os, 'macos') }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npm run ${{ matrix.package_script }} -- --publish always

@@ -1,0 +1,11 @@
+=== RUN   TestPoC_StreamTruncationUndetected
+    trunc_test.go:177: honest gateway:   err=<nil> finish="stop" content="The answer is NOT 42." (frames relayed=6)
+    trunc_test.go:187: truncating gateway: err=<nil> finish="" content="The answer is "
+    trunc_test.go:197: VULNERABLE: openai-go returned a truncated answer "The answer is " with stream.Err()==nil; the [DONE] sentinel and finish_reason were dropped by the intermediary and nothing detected it
+    trunc_test.go:238: mid-frame cut (control): err=FRAMING_TRUNCATED: failed to read encrypted chunk: EOF content="The answer is "
+--- PASS: TestPoC_StreamTruncationUndetected (0.01s)
+=== RUN   TestPoC_NonStreamingTruncationIsDetectedByJSON
+    trunc_test.go:256: non-streaming, all frames dropped: err=error parsing response json: EOF
+--- PASS: TestPoC_NonStreamingTruncationIsDetectedByJSON (0.00s)
+PASS
+ok  	poc	0.015s

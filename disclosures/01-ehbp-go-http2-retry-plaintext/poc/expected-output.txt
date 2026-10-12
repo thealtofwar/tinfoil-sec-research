@@ -1,0 +1,65 @@
+# ./run.sh on 2026-10-11, Go go1.27.1, linux/amd64. Ciphertext dumps truncated to 200 chars.
+=== EHBP v0.3.2, expect=vulnerable
+    poc_h2_retry_test.go:244: client: status=200 proto=HTTP/2.0 decrypted answer="genuine enclave answer"
+    poc_h2_retry_test.go:255: intermediary observed body #0 (120 bytes): "\x00\x00\x00t\xd0\x0f\xfcS[\"$\xc5\x009bf\x14\x98\x84b^b\x82\xac#\x9e\xbeE\xeaQ\x93\x0e\x06\xeeٴ\xabh\xd7%.\x9e\xab\x8b\xca\x0...[ciphertext truncated]
+    poc_h2_retry_test.go:255: intermediary observed body #1 (100 bytes): "{\"model\":\"m\",\"messages\":[{\"role\":\"user\",\"content\":\"CANARY-PROMPT acquisition target is ACME Corp\"}]}"
+    poc_h2_retry_test.go:266: VULNERABLE [REFUSED_STREAM]: intermediary read the plaintext body; client got the genuine decrypted answer
+    poc_h2_retry_test.go:244: client: status=200 proto=HTTP/2.0 decrypted answer="genuine enclave answer"
+    poc_h2_retry_test.go:255: intermediary observed body #0 (120 bytes): "\x00\x00\x00t\x14\x063\x98~\x19w\xc6\x06;\x94.\xe9\x1f/\n\xc3\xc0\x1b\x00\xecG\xbfK\xf8\x9ezI\x03\xd7\xee\xd7\xf2$ޅZ\x8c߆aB^\x...[ciphertext truncated]
+    poc_h2_retry_test.go:255: intermediary observed body #1 (100 bytes): "{\"model\":\"m\",\"messages\":[{\"role\":\"user\",\"content\":\"CANARY-PROMPT acquisition target is ACME Corp\"}]}"
+    poc_h2_retry_test.go:266: VULNERABLE [GOAWAY_NO_ERROR]: intermediary read the plaintext body; client got the genuine decrypted answer
+--- PASS: TestPoC_H2RetryPlaintext (0.01s)
+ok  	github.com/tinfoilsh/encrypted-http-body-protocol/client	0.020s
+=== EHBP v0.3.2, expect=fixed
+    poc_h2_retry_test.go:240: client: error: Post "https://127.0.0.1:43385/v1/chat/completions": failed to make request: http2: Transport: cannot retry err [stream error: stream ID 1; REFUSED_STREAM; received from peer] after Request.Body was written; define Request.GetBody to avoid this error
+    poc_h2_retry_test.go:255: intermediary observed body #0 (120 bytes): "\x00\x00\x00th\xfb\xe2鎔a\x01v\xfc\xda\xd6k\xce\v\x12\xbbBž\x04\x9b\x19\xfa\xf1\v\xfb\x8e\xfa)\x92Ȫ\xacș\tF@\x8a\x86#\xf9s0\x05...[ciphertext truncated]
+    poc_h2_retry_test.go:271: FIXED [REFUSED_STREAM]: no plaintext reached the intermediary (client error: Post "https://127.0.0.1:43385/v1/chat/completions": failed to make request: http2: Transport: cannot retry err [stream error: stream ID 1; REFUSED_STREAM; received from peer] after Request.Body was written; define Request.GetBody to avoid this error)
+    poc_h2_retry_test.go:240: client: error: Post "https://127.0.0.1:32879/v1/chat/completions": failed to make request: http2: Transport: cannot retry err [http2: Transport received Server's graceful shutdown GOAWAY] after Request.Body was written; define Request.GetBody to avoid this error
+    poc_h2_retry_test.go:255: intermediary observed body #0 (120 bytes): "\x00\x00\x00t3tο\x89dY\xf88h\xea2(\x01o<J\xc8A\xcfl(\x1f\toĚ\x8a\xd2َ%)\"-\x88R_\x1e69\xc8w\xe3\x94]\xc1\x13\x82l\x10K]\xda\xc...[ciphertext truncated]
+    poc_h2_retry_test.go:271: FIXED [GOAWAY_NO_ERROR]: no plaintext reached the intermediary (client error: Post "https://127.0.0.1:32879/v1/chat/completions": failed to make request: http2: Transport: cannot retry err [http2: Transport received Server's graceful shutdown GOAWAY] after Request.Body was written; define Request.GetBody to avoid this error)
+--- PASS: TestPoC_H2RetryPlaintext (0.01s)
+ok  	github.com/tinfoilsh/encrypted-http-body-protocol/client	0.016s
+=== EHBP v0.4.0, expect=vulnerable
+    poc_h2_retry_test.go:244: client: status=200 proto=HTTP/2.0 decrypted answer="genuine enclave answer"
+    poc_h2_retry_test.go:255: intermediary observed body #0 (120 bytes): "\x00\x00\x00t\xf8\x85\x1f\xe5D\xa8#\xfb1S\x9b'#\x15J\xdfzB\x99-\xb7\xa4\xbd\x03\xa6\x9f'_y\xab\x01\x8c\x8c\xa9\xa1\xe0\xd3\a\x...[ciphertext truncated]
+    poc_h2_retry_test.go:255: intermediary observed body #1 (100 bytes): "{\"model\":\"m\",\"messages\":[{\"role\":\"user\",\"content\":\"CANARY-PROMPT acquisition target is ACME Corp\"}]}"
+    poc_h2_retry_test.go:266: VULNERABLE [REFUSED_STREAM]: intermediary read the plaintext body; client got the genuine decrypted answer
+    poc_h2_retry_test.go:244: client: status=200 proto=HTTP/2.0 decrypted answer="genuine enclave answer"
+    poc_h2_retry_test.go:255: intermediary observed body #0 (120 bytes): "\x00\x00\x00tΩ\xce^\xb3\xa4\xe4\x02\xd4\xf9\xc5T\xa8\xb6\xe9\xee\xbci\xaf\xdeW\xef<\xe3sЖj\x14!<\xbb\x02\xa1\x01\xb9d\x90J\xe4...[ciphertext truncated]
+    poc_h2_retry_test.go:255: intermediary observed body #1 (100 bytes): "{\"model\":\"m\",\"messages\":[{\"role\":\"user\",\"content\":\"CANARY-PROMPT acquisition target is ACME Corp\"}]}"
+    poc_h2_retry_test.go:266: VULNERABLE [GOAWAY_NO_ERROR]: intermediary read the plaintext body; client got the genuine decrypted answer
+--- PASS: TestPoC_H2RetryPlaintext (0.02s)
+ok  	github.com/tinfoilsh/encrypted-http-body-protocol/client	0.021s
+=== EHBP v0.4.0, expect=fixed
+    poc_h2_retry_test.go:240: client: error: Post "https://127.0.0.1:35547/v1/chat/completions": failed to make request: http2: Transport: cannot retry err [stream error: stream ID 1; REFUSED_STREAM; received from peer] after Request.Body was written; define Request.GetBody to avoid this error
+    poc_h2_retry_test.go:255: intermediary observed body #0 (120 bytes): "\x00\x00\x00tjz(\xabU\x8a\xab\xd8P\xd8\xea\xf7\xa1U{\x93! 5\xb0a\x80\xaeP\n\x1b\x85\xb5<\b?\xa6\x87l\xd9q\xa1\xa1b1\x8c\xdb\x1...[ciphertext truncated]
+    poc_h2_retry_test.go:271: FIXED [REFUSED_STREAM]: no plaintext reached the intermediary (client error: Post "https://127.0.0.1:35547/v1/chat/completions": failed to make request: http2: Transport: cannot retry err [stream error: stream ID 1; REFUSED_STREAM; received from peer] after Request.Body was written; define Request.GetBody to avoid this error)
+    poc_h2_retry_test.go:240: client: error: Post "https://127.0.0.1:41247/v1/chat/completions": failed to make request: http2: Transport: cannot retry err [http2: Transport received Server's graceful shutdown GOAWAY] after Request.Body was written; define Request.GetBody to avoid this error
+    poc_h2_retry_test.go:255: intermediary observed body #0 (120 bytes): "\x00\x00\x00t\xec\xffP\xec_\xe9c՞Ƿ_\x1fC\x00\xeep{\xa6\xe3\xe4\xfe\xf4%\x1a\xc9X\xd1\xc8\xcde]\x95\xeap\xb6\x99`n\xfe\xa7\xa4f...[ciphertext truncated]
+    poc_h2_retry_test.go:271: FIXED [GOAWAY_NO_ERROR]: no plaintext reached the intermediary (client error: Post "https://127.0.0.1:41247/v1/chat/completions": failed to make request: http2: Transport: cannot retry err [http2: Transport received Server's graceful shutdown GOAWAY] after Request.Body was written; define Request.GetBody to avoid this error)
+--- PASS: TestPoC_H2RetryPlaintext (0.01s)
+ok  	github.com/tinfoilsh/encrypted-http-body-protocol/client	0.016s
+=== tinfoil-go v0.17.0-rc.1 (EHBP v0.3.2), expect=vulnerable
+    sdk_poc_test.go:228: SDK call succeeded; assistant said "hello from the enclave"
+    sdk_poc_test.go:242: proxy capture 0: POST /v1/chat/completions x-tinfoil-enclave-url=https://enclave.example ehbp-encapsulated-key=123f1ae283c1d272.. body="\x00\x00\x00\xa0\x9eI\x02\xbb\xa4am\x10...[ciphertext truncated]
+    sdk_poc_test.go:242: proxy capture 1: POST /v1/chat/completions x-tinfoil-enclave-url=https://enclave.example ehbp-encapsulated-key=123f1ae283c1d272.. body="{\"messages\":[{\"content\":\"CANARY-SDK-PROMPT patient record 0000\",\"role\":\"user\"}],\"model\":\"m\",\"user_cache_secret\":\"CANARY-user-cache-secret-5f3a\"}"
+    sdk_poc_test.go:261: VULNERABLE: proxy read the plaintext prompt and user_cache_secret; SDK call returned success
+--- PASS: TestPoC_SDKDefaultEHBPLeaksPromptToProxy (0.06s)
+    sdk_poc_test.go:337: gateway SDK call succeeded; assistant said "hello from the replica"
+    sdk_poc_test.go:349: gateway capture 0: POST /v1/chat/completions x-tinfoil-seal=replica.example x-tinfoil-enclave-url=https://replica.example body="\x00\x00\x00\xa5>'\x8d\xe0\xa6A\xcd:\xff\x89\xf...[ciphertext truncated]
+    sdk_poc_test.go:349: gateway capture 1: POST /v1/chat/completions x-tinfoil-seal=replica.example x-tinfoil-enclave-url=https://replica.example body="{\"cache_salt\":\"DJY6aYIGSw8u0WcveLKW5fmjK-RlLQ7Cp6t8qHkgvVo\",\"messages\":[{\"content\":\"CANARY-GATEWAY-PROMPT merger target\",\"role\":\"user\"}],\"model\":\"m\"}"
+    sdk_poc_test.go:365: VULNERABLE: the gateway read the plaintext prompt; the SDK call returned success
+--- PASS: TestPoC_GatewayPathLeaksPromptToGateway (0.01s)
+ok  	github.com/tinfoilsh/tinfoil-go	0.123s
+=== tinfoil-go v0.17.0-rc.1 (EHBP v0.3.2), expect=fixed
+    sdk_poc_test.go:230: SDK call error: error reading response body: failed to decrypt chunk: cipher: message authentication failed
+    sdk_poc_test.go:242: proxy capture 0: POST /v1/chat/completions x-tinfoil-enclave-url=https://enclave.example ehbp-encapsulated-key=c9a043bcdc5e1c1a.. body="\x00\x00\x00\xa0!\x9d\xa2ӽ\x9aħn\xba\x9...[ciphertext truncated]
+    sdk_poc_test.go:242: proxy capture 1: POST /v1/chat/completions x-tinfoil-enclave-url=https://enclave.example ehbp-encapsulated-key=be4d1ab98f83a166.. body="\x00\x00\x00\xa0\tm;\x13fLijuI\xcbI\x88...[ciphertext truncated]
+    sdk_poc_test.go:252: FIXED: no plaintext reached the proxy
+--- PASS: TestPoC_SDKDefaultEHBPLeaksPromptToProxy (0.42s)
+    sdk_poc_test.go:339: gateway SDK call error: error reading response body: failed to decrypt chunk: cipher: message authentication failed
+    sdk_poc_test.go:349: gateway capture 0: POST /v1/chat/completions x-tinfoil-seal=replica.example x-tinfoil-enclave-url=https://replica.example body="\x00\x00\x00\xa5\xba\x03\xb3\xfan-\\\xa5H\xd7D\...[ciphertext truncated]
+    sdk_poc_test.go:349: gateway capture 1: POST /v1/chat/completions x-tinfoil-seal=replica.example x-tinfoil-enclave-url=https://replica.example body="\x00\x00\x00\xa5\a\xb5yJ\xaa\x9d\x98&#?\xdb-\xf...[ciphertext truncated]
+    sdk_poc_test.go:359: FIXED: no plaintext reached the gateway
+--- PASS: TestPoC_GatewayPathLeaksPromptToGateway (0.39s)
+ok  	github.com/tinfoilsh/tinfoil-go	0.819s

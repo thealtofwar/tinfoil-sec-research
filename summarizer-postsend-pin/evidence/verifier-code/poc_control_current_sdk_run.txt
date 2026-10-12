@@ -1,0 +1,10 @@
+=== RUN   TestCurrentSDKPinsBeforeSending
+    control_test.go:57: genuine server received POST /v1/chat/completions with 77 body bytes
+    control_test.go:100: [genuine] status=200 genuineHits=1
+2026/10/07 18:28:01 http: TLS handshake error from 127.0.0.1:59774: remote error: tls: bad certificate
+    control_test.go:105: [attacker] client error: Post "https://router.inf6.tinfoil.sh/v1/chat/completions": attestation error: enclave certificate does not match the attested key; re-verify the enclave
+    control_test.go:106: [attacker] attacker server requests received: 0
+    control_test.go:110: RESULT: current SDK aborts in the TLS handshake; zero request bytes reach the attacker
+--- PASS: TestCurrentSDKPinsBeforeSending (0.01s)
+PASS
+ok  	poc/control	0.022s

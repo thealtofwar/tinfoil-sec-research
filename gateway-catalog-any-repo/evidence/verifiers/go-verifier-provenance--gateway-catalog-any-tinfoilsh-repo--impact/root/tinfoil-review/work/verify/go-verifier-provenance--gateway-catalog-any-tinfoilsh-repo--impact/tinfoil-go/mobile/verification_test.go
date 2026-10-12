@@ -1,0 +1,93 @@
+package mobile
+
+import (
+	"encoding/json"
+	"testing"
+	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	"github.com/tinfoilsh/tinfoil-go/document"
+	"github.com/tinfoilsh/tinfoil-go/verify"
+	"github.com/tinfoilsh/tinfoil-go/verify/measurement"
+)
+
+func sampleVerification() *verify.Verification {
+	return &verify.Verification{
+		ConfigRepo: "tinfoilsh/confidential-model-router",
+		CodeDigest: "abc123",
+		CodeTag:    "v1.2.3",
+		CodeMeasurement: &measurement.Measurement{
+			Type: measurement.SnpTdxMultiPlatformV1, Registers: []string{"aa", "bb", "cc"},
+		},
+		EnclaveMeasurement: &measurement.Measurement{
+			Type: measurement.TdxGuestV2, Registers: []string{"dd", "ee"},
+		},
+		CryptoMaterial: []document.CryptoMaterialItem{
+			{ID: "tls", Format: document.KeySPKIFPSHA256V1Format, Data: "deadbeef"},
+			{ID: "hpke", Format: document.KeyX25519HPKEV1Format, Data: "cafebabe"},
+		},
+		FreshnessExpiresAt: time.Date(2026, 10, 3, 12, 0, 0, 0, time.UTC),
+		Metadata: verify.VerificationMetadata{
+			Verifier:   verify.SoftwareIdentity{Name: "tinfoil-go", Version: "0.15.7"},
+			VerifiedAt: time.Date(2026, 9, 26, 12, 0, 0, 0, time.UTC),
+		},
+	}
+}
+
+// Lifting the channel keys out of crypto_material by ID and format is the only
+// real work this mapping does: binding a connection is what a caller has a
+// verification for, and it should not have to repeat the lookup.
+func TestVerificationLiftsChannelKeys(t *testing.T) {
+	encoded, err := encode(sampleVerification())
+	require.NoError(t, err)
+
+	var got map[string]any
+	require.NoError(t, json.Unmarshal([]byte(encoded), &got))
+	assert.Equal(t, "deadbeef", got["tls_public_key_fp"])
+	assert.Equal(t, "cafebabe", got["hpke_public_key"])
+	assert.Len(t, got["crypto_material"], 2, "lifted keys are still listed in full")
+}
+
+// A TLS-only enclave endorses no HPKE key. That has to be an absent field
+// rather than a failed mapping, or such an enclave could not be used at all.
+func TestVerificationOmitsMissingHPKE(t *testing.T) {
+	v := sampleVerification()
+	v.CryptoMaterial = v.CryptoMaterial[:1]
+
+	encoded, err := encode(v)
+	require.NoError(t, err)
+
+	var got map[string]any
+	require.NoError(t, json.Unmarshal([]byte(encoded), &got))
+	assert.Equal(t, "deadbeef", got["tls_public_key_fp"])
+	assert.NotContains(t, got, "hpke_public_key")
+}
+
+// time.Time cannot cross the FFI boundary, so the deadline a caller must honour
+// is formatted here and parsed back on the other side.
+func TestVerificationFormatsFreshnessDeadline(t *testing.T) {
+	encoded, err := encode(sampleVerification())
+	require.NoError(t, err)
+
+	var got map[string]any
+	require.NoError(t, json.Unmarshal([]byte(encoded), &got))
+	parsed, err := time.Parse(time.RFC3339Nano, got["freshness_expires_at"].(string))
+	require.NoError(t, err)
+	assert.True(t, parsed.Equal(sampleVerification().FreshnessExpiresAt))
+}
+
+// The appraisal time comes from the verification's metadata. The host and the
+// verifying SDK are the caller's: nothing attests either.
+func TestVerificationKeepsAppraisalTimeOnly(t *testing.T) {
+	encoded, err := encode(sampleVerification())
+	require.NoError(t, err)
+
+	var got map[string]any
+	require.NoError(t, json.Unmarshal([]byte(encoded), &got))
+	assert.Equal(t, "tinfoilsh/confidential-model-router", got["config_repo"])
+	assert.NotContains(t, got, "enclave_host")
+	assert.NotContains(t, got, "verifier")
+	assert.Equal(t, "2026-09-26T12:00:00Z", got["verified_at"])
+}

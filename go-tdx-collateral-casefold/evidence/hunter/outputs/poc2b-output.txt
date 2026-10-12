@@ -1,0 +1,8 @@
+=== RUN   TestPoC_v0161_Control
+    poc_casefold_test.go:102: genuine collateral: attestation error: verifying TDX quote: TDX TCB info reported by Intel PCS failed TCB status check: no matching TCB level found
+--- PASS: TestPoC_v0161_Control (0.01s)
+=== RUN   TestPoC_v0161_UnsignedCaseVariantAccepted
+    poc_casefold_test.go:109: ACCEPTED by tinfoil-go v0.16.1: identity=089ddfdb9c0359c82a3bc7719239574e
+--- PASS: TestPoC_v0161_UnsignedCaseVariantAccepted (0.00s)
+PASS
+ok  	github.com/tinfoilsh/tinfoil-go/verifier/internal/quote/tdx	0.018s

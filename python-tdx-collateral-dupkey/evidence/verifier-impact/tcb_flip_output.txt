@@ -1,0 +1,4 @@
+real quote: PCK chain + quote sig + QE report sig verified against the pinned Intel SGX Root CA
+  tee_tcb_svn 03000400000000000000000000000000 | QE mrsigner dc9e2a7c6f948f17 (Intel TD_QE)
+[REJECTED] genuine Intel TCB Info: No matching TCB level found for the quote's SVN values
+[ACCEPTED] genuine Intel TCB Info + appended duplicate 'tcbInfo': platform TCB status = UpToDate

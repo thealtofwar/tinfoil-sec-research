@@ -1,0 +1,10 @@
+=== RUN   TestPoC_AttachmentKeyDerivableWithoutSecret
+    poc_attachment_key_test.go:161: enclave minted attachment id=81c9505e5d100b685e380f93ad96319b1b6d att_key=HsyBkY5qfFRRn4s9yHV3JqWqB3OuA5+ZnF9BR+kQHRw=
+    poc_attachment_key_test.go:191: SCENARIO A: unauthenticated get-public with offline-derived (id,key) returned the plaintext: "PNG-ish bytes of a file the attacker already knows"
+    poc_attachment_key_test.go:232: CP observed: fork X-Idempotency-Key=a3c1e6f2b9d04e7f8a5b6c7d8e9f0a1b target chat=chat-victim-fork X-Clerk-User-Id=user_victim source att id=81c9505e5d100b685e380f93ad96319b1b6d new att id=ad2028d2f80d55d02c49e48c6d430eec6339
+    poc_attachment_key_test.go:245: SCENARIO B: derived id ad2028d2f80d55d02c49e48c6d430eec6339 == CP-visible attachment id (plaintext guess confirmed offline, no enclave call)
+    poc_attachment_key_test.go:250: SCENARIO B: unauthenticated get-public with CP-derived key returned the plaintext: "PNG-ish bytes of a file the attacker already knows"
+    poc_attachment_key_test.go:262: negative control: wrong key -> status 400 (as expected)
+--- PASS: TestPoC_AttachmentKeyDerivableWithoutSecret (0.07s)
+PASS
+ok  	github.com/tinfoilsh/confidential-sync-enclave/internal/localstack/smoke	0.073s

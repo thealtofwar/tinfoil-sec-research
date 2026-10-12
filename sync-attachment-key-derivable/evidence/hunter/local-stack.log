@@ -1,0 +1,22 @@
+
+local-stack ready
+=================
+enclave         http://127.0.0.1:40021
+controlplane    http://127.0.0.1:40022  (stub)
+jwks            http://127.0.0.1:40023/.well-known/jwks.json
+user_sub        user_victim
+cek_key_id      1806f966bbdf33c9bc58ce7d5ec71fe6
+cek_b64         U12YdSHNOBVBaMlpe4EljVbhTC2vgiq5xp52vTDN30k=
+
+export TOK='eyJhbGciOiJSUzI1NiIsImtpZCI6ImxvY2FsLXN0YWNrLWtpZCIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3OTE1MDg0MTMsImlhdCI6MTc5MTQyMjAxMywiaXNzIjoiaHR0cDovLzEyNy4wLjAuMTo0MDAyMyIsIm5iZiI6MTc5MTQyMjAxMywic3ViIjoidXNlcl92aWN0aW0ifQ.SvmhpaatyNZAUyUkpgvuvx-_xGZWYyusmeWskFPGNUgBQeM5-HRz2fAlAcN8ZPBVbwt8dkVpyGEXlASKG5k8IEOlQXX_4n1089F0bzIg9JaxDYZH0PbeOANPUlw8HmGmeU9jd7bQXdx18BHkJLOkRlyVsHXK-KAR0FeAnjTuOIa8o5Cw23pCnSt-DyjuJCJy92HoXVpDR1C6KVRGtuMMzMYTr9eVszP48VlSeSEE7a1QXPxFU_w1Dbape52ZKErt4DiEiVLHGoSVr551szpN2YgbcRdhfINToh4jL4Sa7zqpXFFSaNJ5OfyNWpmML7a8t1uHQWMQNZwx7vDNM-MAxA'
+export CEK='U12YdSHNOBVBaMlpe4EljVbhTC2vgiq5xp52vTDN30k='
+export BASE='http://127.0.0.1:40021'
+
+# Try it:
+  curl -sS $BASE/v1/health
+  curl -sS -X POST $BASE/v1/key/register \
+    -H "Authorization: Bearer $TOK" \
+    -H 'X-Sync-Protocol: 3' \
+    -H 'Content-Type: application/json' \
+    -d '{"key":"'$CEK'","if_match":"*","created_via":"start_fresh","idempotency_key":"local-1"}'
+

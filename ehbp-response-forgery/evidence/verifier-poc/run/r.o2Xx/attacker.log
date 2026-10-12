@@ -1,0 +1,6 @@
+2026/10/07 18:28:08 [attacker] CONNECT proxy on 127.0.0.1:46211 mode=redirect-303
+2026/10/07 18:28:09 [attacker] CONNECT proxy.example.com:443 -> terminating TLS locally
+2026/10/07 18:28:09 [attacker] mode=redirect-303 POST https://proxy.example.com/v1/chat/completions sealed=true bodyBytes=189 sawPlaintextPrompt=false enclave-url-hdr="https://enclave.example.com"
+2026/10/07 18:28:09 [attacker] mode=redirect-303 GET https://proxy.example.com/v1/chat/completions sealed=false bodyBytes=0 sawPlaintextPrompt=false enclave-url-hdr="https://enclave.example.com"
+2026/10/07 18:28:09 [attacker] mode=redirect-303 POST https://proxy.example.com/v1/chat/completions sealed=true bodyBytes=203 sawPlaintextPrompt=false enclave-url-hdr="https://enclave.example.com"
+2026/10/07 18:28:09 [attacker] mode=redirect-303 GET https://proxy.example.com/v1/chat/completions sealed=false bodyBytes=0 sawPlaintextPrompt=false enclave-url-hdr="https://enclave.example.com"

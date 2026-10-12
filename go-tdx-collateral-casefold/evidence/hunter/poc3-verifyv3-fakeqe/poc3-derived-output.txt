@@ -1,0 +1,6 @@
+===== fakeqe-control
+{"stage": "verify-attestation-v3", "accepted": false, "rejection": {"code": "QUOTE_REJECTED"}} | tls_fp: None | hpke: None
+exit=10
+===== fakeqe-casefold-derived
+{"stage": "verify-attestation-v3", "accepted": true} | tls_fp: d1a3788930750184f2fe268a222b5c65bab974069573c4afbf656454f066b6e3 | hpke: 58c9b3756d738466ace1e27f83a7fe21b3356ec362694aef1506c5f35c766a01
+exit=0

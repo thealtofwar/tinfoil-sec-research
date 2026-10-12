@@ -1,0 +1,426 @@
+# Tinfoil open-source security review: verified findings
+
+**Status:** draft for responsible disclosure to security@tinfoil.sh. Do not publish before fixes ship.
+**Date:** 2026-10-07.
+**Scope:** public repositories under github.com/tinfoilsh, at the commits and versions stated below.
+**Method:** static review plus **local** proofs of concept (loopback tests against the libraries and
+services). No traffic was sent to any Tinfoil production system and nothing was filed on GitHub.
+
+Each finding was checked by at least three independent reviewers, each told to try to refute it from a
+different angle: code trace, PoC reproduction, and threat-model/impact. Finding 1 also got a
+production-reachability review and a variant-analysis review. The verdicts are in
+`verification-verdicts.json`.
+
+| # | Finding | Component | Severity | Verification |
+|---|---|---|---|---|
+| 1 | EHBP Go client resends request bodies **in plaintext** on HTTP/2 retries | `encrypted-http-body-protocol` (Go), `tinfoil-go`, and products built on them | **High** | 5/5 upheld (conf. 0.93–0.97). PoC reproduced; fix validated |
+| 2 | Duplicate-key JSON differential lets forged Intel TDX collateral pass | `tinfoil-python` 0.14.0 (latest) | **High** | 3/3 upheld (0.86–0.90) |
+| 3 | `/snapshot` bypasses the per-chat token and returns the plaintext workspace | `code-execution-environment` | **High** (reachability caveat) | 3/3 upheld (0.75–0.85) |
+| 4 | EHBP Go/tinfoil-go accept forged responses via 3xx pass-through and a 303 POST→GET downgrade | `tinfoil-go` + `encrypted-http-body-protocol` (Go) | Medium (integrity) | 3/3 upheld (0.85–0.86) |
+| 5 | The summarizer enclave sends requests **before** checking the TLS pin | `confidential-summarizer` v0.1.15 (pins tinfoil-go v0.11.3) | Medium | 3/3 upheld (0.8–0.9) |
+
+---
+
+## Finding 1: EHBP Go client resends request bodies in plaintext on HTTP/2 retries (High)
+
+### Summary
+
+The Go EHBP client encrypts the request body but leaves the request's `GetBody` pointing at the
+**original plaintext body**. Go's HTTP/2 client replays a request on a new stream when the peer sends
+`RST_STREAM(REFUSED_STREAM)` or `GOAWAY`, and it rebuilds the body by calling `GetBody()`. The replay
+therefore carries the plaintext body, still labelled with the `Ehbp-Encapsulated-Key` header.
+
+The party that terminates TLS can trigger this with one frame. EHBP exists precisely so that this party
+cannot read bodies. It then:
+
+1. refuses the sealed stream,
+2. reads the plaintext retry,
+3. forwards the original ciphertext to the real enclave, and
+4. relays the sealed reply.
+
+The client decrypts a genuine answer and reports success. Nothing is logged and no error is raised.
+
+`tinfoil-go` uses this transport **by default** (`TransportEHBP`). Several shipped Tinfoil components send
+EHBP through Tinfoil's own gateway (`inference-gateway.tinfoil.sh`), which clients never attest. Those
+components are `tinfoil-proxy`, `confidential-openai-adapter`, and `confidential-tinfoil-harness`, the
+enclave that runs Tinfoil Chat conversations.
+
+### Affected versions
+
+- **`encrypted-http-body-protocol` Go client:** reproduced on `v0.3.2` (the version every Go consumer
+  pins) and on HEAD `7ee9288` (= `v0.4.0`, the latest release). Verifiers report the same code shape back
+  to `v0.1.7`. **No fixed release exists.**
+- **`tinfoil-go`:** HEAD `ef79d8e`, byte-identical in all relevant files to the latest published
+  `v0.17.0-rc.1`. Also `v0.16.1` and earlier versions that call `NewTransportWithIdentity`.
+
+### Root cause
+
+`encrypted-http-body-protocol/client/client.go` (HEAD):
+```go
+323	newReq := req.Clone(req.Context())                 // Clone copies req.GetBody (plaintext)
+343	reqCtx, err := t.serverIdentity.EncryptRequestWithContext(newReq)
+363	resp, err := t.roundTripper().RoundTrip(newReq)    // http.DefaultTransport (ForceAttemptHTTP2)
+```
+`encrypted-http-body-protocol/identity/crypt.go` (HEAD):
+```go
+435	func (i *Identity) EncryptRequestWithContext(req *http.Request) (*RequestContext, error) {
+458		req.Body = streamingReader     // ciphertext, used for the FIRST attempt only
+459		req.ContentLength = -1
+		// req.GetBody is never cleared or replaced
+```
+Go 1.27.1 `net/http/internal/http2/transport.go`:
+```go
+507	func shouldRetryRequest(req *ClientRequest, err error) (*ClientRequest, error) {
+517		if req.GetBody != nil {
+518			body, err := req.GetBody()     // <- the caller's plaintext body
+537	func canRetryError(err error) bool {
+538		if err == errClientConnUnusable || err == errClientConnGotGoAway { return true }
+542			return se.Code == ErrCodeRefusedStream
+```
+
+Every common caller sets `GetBody` to plaintext:
+
+- openai-go sets it for its JSON body.
+- `http.NewRequest` sets it for `bytes`/`strings` readers.
+- In `tinfoil-go`, `user_cache_secret.go:264-271` sets it deliberately, including the injected
+  `user_cache_secret`.
+- In `tinfoil-go`, `seal_transport.go:248-254` (`setGatewayBody`) sets it, including `cache_salt`.
+
+The tinfoil-go wrappers assume every replay passes back through EHBP. net/http's retry runs *below* EHBP,
+so that assumption does not hold.
+
+### Triggers (tested on Go 1.27.1)
+
+- `RST_STREAM(REFUSED_STREAM)`, even when sent as soon as `HEADERS` arrive and before any `DATA`.
+- `GOAWAY` with any error code, including a graceful `NO_ERROR` on a fresh or reused connection.
+- On Go ≤ 1.26, which some enclave service images use, a peer `RST_STREAM(PROTOCOL_ERROR)` also triggers it.
+- **HTTP/1.1 is not a practical vector.** openai-go sends no `Idempotency-Key`, so POSTs are not replayed.
+  The attacker can always choose HTTP/2 through ALPN, because Go's default transport offers `h2`.
+- **Even honest infrastructure can trigger it.** An unmodified Go `net/http` HTTP/2 server with
+  `MaxConcurrentStreams` set to 1 or 32 received **1140/1280** and **375/1280** plaintext bodies
+  respectively during bursts of 128 requests on new connections. With the setting at 100 it received
+  none. In that benign case the enclave later rejects the replay (400), but the plaintext has already
+  reached the intermediary.
+
+### Who can exploit it (precondition)
+
+The attacker must be the client's **TLS peer**. A network attacker who cannot terminate TLS cannot
+inject the triggering frames.
+
+- **`TransportTLS` (pinned mode) is not affected.** The pin is checked in `VerifyConnection` during the
+  handshake, so a non-enclave peer never receives a request.
+- **EHBP mode deliberately does not pin TLS.** It uses `http.DefaultTransport` with WebPKI validation
+  only (`tinfoil-go/enclave_transport.go:137-148`; `tinfoil-go/AGENTS.md`). Its documented property is
+  "Only the verified enclave can decrypt them, so it works through proxies"
+  (`enclave_transport.go:21-24`). EHBP confidentiality must therefore hold whoever the TLS peer is, and
+  this bug breaks it.
+
+| Configuration | Who terminates TLS | Attacker requirement |
+|---|---|---|
+| `NewGateway(...)`, `tinfoil-proxy`, `confidential-openai-adapter`, harness model turns | Tinfoil gateway (`inference-gateway.tinfoil.sh`). Unattested; `tinfoil-proxy` says "The gateway is not attested". | None beyond being, or compromising, the gateway. **On-path by design.** |
+| `WithBaseURL(proxy)` | The configured proxy | Proxy operator. On-path by design. |
+| Any mode behind enterprise TLS inspection | Middlebox with a locally trusted root | Middlebox operator |
+| Default `NewClient()` direct to the router enclave | Normally the enclave | A WebPKI certificate for the hostname plus an on-path position. Possible holders: the DNS owner (Tinfoil), a host passing ACME HTTP-01/TLS-ALPN-01 for the enclave IP, a compromised DNS API token, or CA mis-issuance. Inside Tinfoil's "not even Tinfoil" model; CT would record the certificate afterwards. |
+
+### Production exposure (verified in code; end-to-end PoCs where noted)
+
+| Component (pinned versions) | Path | Data the gateway or intermediary can read |
+|---|---|---|
+| **`confidential-tinfoil-harness`**, the Tinfoil Chat backend enclave (tinfoil-go `v0.15.4-0.20260828072713-251feb041ce8`, EHBP `v0.3.2`) | `main.go:73` defaults to the gateway URL. `main.go:131-142` builds `NewClientWithOptions(WithEnclave, WithRepo, WithBaseURL(gateway+"/v1/"))`, which is default EHBP. `agent.go:289-298` sends each turn with `http.NewRequestWithContext(..., bytes.NewReader(payload))`. **End-to-end PoC** using the harness's own test harness and `/v1/threads/turn` route, built with its Dockerfile toolchain (Go 1.26.6). | Every model turn: the assembled conversation, i.e. system prompt, history, project documents, memory and attachments. Audio turns too. |
+| **`tinfoil-proxy`** CLI, Electron app and container image (tinfoil-go `v0.16.1`, EHBP `v0.3.2`) | `main.go:23` sets the default gateway; `proxy.go:134` calls `tinfoil.NewGateway`. The README promises EHBP is used "so neither the gateway nor any other intermediary can read them". **End-to-end PoC** with the shipped proxy code (REFUSED_STREAM and GOAWAY variants); the local client gets a normal 200. | Every request from local tools, including `cache_salt` |
+| **`confidential-openai-adapter`** (tinfoil-go `v0.15.8-0.20260924012310-ff60af7e9ea6`, EHBP `v0.3.2`) | `main.go:27,45`: `tinfoil.NewGateway`. Its reverse proxy sets a plaintext `r.GetBody`. Adapter-shaped PoC. | Customers' API request bodies |
+| `tinfoil-go` SDK users | Default `NewClient`, `WithBaseURL`, `NewGateway`, and `HTTPClient()` | Prompts, files, plus `user_cache_secret` / `cache_salt` |
+| Other Go enclave services on default EHBP (inspection only) | `confidential-safeguards` (forwards conversations to classifiers), `confidential-websearch`, `confidential-doc-upload` (VLM page images), the deprecated `tinfoil-cli proxy` | Service-to-enclave request bodies |
+
+**Older variant, same root cause.** EHBP ≤ `v0.2.5` also sends the plaintext to an attacker-chosen
+`Location` on a 307/308 redirect, because it uses an inner `http.Client.Do`. This was verified locally.
+`confidential-sync` and `demo-safeguard` still pin it, through tinfoil-go `v0.13.x`/`v0.14.x`.
+
+**Not affected:**
+- the JS, Python, Rust and Swift EHBP clients and SDKs: Python was tested against a refusing HTTP/2 peer
+  and saw no replay; the others were checked by code review;
+- `TransportTLS`;
+- the model router's upstream calls (TLS-pinned);
+- `confidential-summarizer` (TLS-pinned, but see Finding 5);
+- `verifiable-reviewer`.
+
+**Not verified (no production traffic was sent):** whether `inference-gateway.tinfoil.sh` currently
+negotiates HTTP/2, and whether it runs in a VM. A malicious or compromised gateway controls protocol
+negotiation and is not attested by clients, so neither changes the conclusion.
+
+### Proof of concept (local only)
+
+Files are under `ehbp-h2-retry-plaintext/`. The "intermediary" is a loopback TLS server that speaks raw
+HTTP/2 frames and never holds the HPKE private key.
+
+1. **Library level, EHBP HEAD `v0.4.0` and release `v0.3.2`** (written for this report):
+   ```
+   cd ehbp-h2-retry-plaintext/encrypted-http-body-protocol          # or encrypted-http-body-protocol-v0.3.2
+   go test ./client/ -run TestPoC_RefusedStreamReplaysPlaintextBody -v -count=1
+   ```
+   ```
+   client: status=200 proto=HTTP/2.0 decrypted answer="enclave answer"
+   intermediary observed body #0: "\x00\x00\x00tb8\xaf\xf7J..."        (ciphertext, refused)
+   intermediary observed body #1: "{\"model\":\"m\",\"messages\":[{\"role\":\"user\",\"content\":\"CONFIDENTIAL: acquisition target is ACME Corp\"}]}"
+   VULNERABLE: the intermediary read the plaintext request body, and the client call succeeded normally
+   ```
+2. **SDK level: tinfoil-go default stack plus the real openai-go client.** Only the attestation step is
+   stubbed, by a function that hands over the HPKE key a successful verification would yield.
+   ```
+   cd ehbp-h2-retry-plaintext/tinfoil-go && go test -run 'TestPoC_' -v -count=1 .
+   ```
+   Both default EHBP mode and gateway mode leak the plaintext chat request, including
+   `user_cache_secret` or `cache_salt`. `Chat.Completions.New` returns the genuine enclave answer.
+3. **Additional verifier PoCs** are in `ehbp-h2-retry-plaintext/evidence/`:
+   - GOAWAY and pre-DATA REFUSED_STREAM variants, plus the benign-server burst test;
+   - the end-to-end `tinfoil-proxy` and harness tests;
+   - the Go 1.26 PROTOCOL_ERROR variant and the EHBP v0.2.5 307 redirect variant;
+   - the SDK streaming and multipart audio variants;
+   - an HTTP/1.1 control.
+
+### Fix (validated locally)
+
+```go
+// identity/crypt.go, EncryptRequestWithContext, after replacing the body:
+req.Body = streamingReader
+req.ContentLength = -1
+req.GetBody = nil // transport-level retries must never re-read the caller's plaintext
+```
+
+An alternative is a `GetBody` that replays the already-produced ciphertext byte-for-byte.
+
+What the fix was checked against:
+- With the one-line change, the PoC fails closed: `http2: Transport: cannot retry err [stream error:
+  ... REFUSED_STREAM; received from peer] after Request.Body was written`.
+- Every variant above stops leaking.
+- The full existing EHBP Go test suite passes (`go test ./... -skip TestPoC_`).
+
+Retries above the EHBP layer still work and stay safe, because each one goes back through `RoundTrip` and
+is re-encrypted. That covers openai-go's retry loop, `http.Client` redirects and tinfoil-go's
+key-rotation recovery.
+
+Also recommended:
+- Add a raw-frame HTTP/2 regression test that sends REFUSED_STREAM and GOAWAY.
+- Release a fixed EHBP version and bump `tinfoil-go`, `tinfoil-proxy`, the harness, the adapter and the
+  other Go services.
+- Move `confidential-sync` and `demo-safeguard` off EHBP ≤ v0.2.5.
+
+### Severity
+
+**High.**
+- Gateway and proxy topologies (Tinfoil Chat harness, `tinfoil-proxy`, adapter): CVSS 3.1
+  `AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N` = **7.5**.
+- Default direct-to-enclave mode, where a certificate-capable on-path adversary is needed:
+  `AC:H` = **5.9**.
+
+---
+
+## Finding 2: tinfoil-python accepts forged Intel TDX collateral via a duplicate-key JSON differential (High)
+
+**Component:** `tinfoil-python` **0.14.0**, the latest on PyPI; `collateral_tdx.py` is byte-identical at repo
+HEAD `98911bb`. Files: `src/tinfoil/attestation/collateral_tdx.py`: `_verify_collateral_signature`
+(L642-735), `parse_tcb_info_response` (L538-567) and `parse_qe_identity_response` (L570-603).
+
+### Root cause
+
+- `_verify_collateral_signature` verifies Intel's ECDSA signature over the **first** `"tcbInfo":` /
+  `"enclaveIdentity":` object it finds in the response text (`str.find` plus `raw_decode`).
+- The parsed objects that are actually enforced come from `json.loads`, where the **last** duplicate key
+  wins.
+
+An attacker can take a genuine Intel-signed PCS response and append a second `tcbInfo` or
+`enclaveIdentity` member with arbitrary contents. The signature checks out against the first copy, and the
+forged copy is what gets enforced. That includes TCB levels and status, QE MRSIGNER/ISVPRODID, `nextUpdate`
+and the evaluation number. The forged collateral is also written to the on-disk cache, and the cache is
+re-verified with the same flawed check, so the forgery persists across sessions.
+
+### Reachability
+
+- All collateral is fetched from `https://tdx-proxy.tinfoil.sh/...`, which is Tinfoil-operated and
+  outside any enclave.
+- tinfoil-python has no V3 document flow. Every TDX verification goes through `validate_collateral`,
+  through this path: `TinfoilAI` / `SecureClient.verify()` / `verify_from_bundle()` → `Document.verify`
+  → `verify_tdx_attestation` → `validate_collateral`.
+- Whoever serves the attestation document chooses its format, so the exposure is not limited to genuine
+  TDX deployments.
+
+### Impact (shown end to end on the published wheel via the public `TinfoilAI()` API)
+
+- **Forged TCB status.** A real Intel SPR quote with its genuine PCK chain is rejected with genuine TCB Info
+  ("No matching TCB level found"). With a duplicate key appended to the same TCB Info, it is accepted as
+  `UpToDate`.
+- **Full attestation bypass by forging the QE identity.** QE Identity is the only Python check that ties
+  a quote to Intel's TD Quoting Enclave. In DCAP, the PCE certifies any enclave that has PROVISIONKEY, and
+  with Flexible Launch Control the host owner decides which enclaves get it. So a host or operator can run
+  its own "QE" that signs arbitrary TD quote bodies, carrying any measurements and the attacker's
+  TLS/HPKE keys. Results:
+  - control (genuine collateral): rejected;
+  - forged TCB Info only: rejected (MRSIGNER mismatch);
+  - both forged: **`securityVerified=True`** with the attacker's keys, and the attacker decrypts the
+    user's prompt;
+  - gateway/bundle mode: the same, without any DNS or WebPKI tricks.
+
+**Caveats:**
+- The captured 2023 Intel collateral is expired, so the clock was frozen to 2023-06-30.
+- The attacker platform's PCK chain was simulated, since a new Intel-signed PCK cannot be produced.
+  Collateral chains were still verified against the real pinned Intel root.
+- The custom-QE step relies on the documented DCAP/FLC property and was not exercised on hardware.
+- Forging the TCB status alone would be roughly Medium.
+
+**Fix:** reject duplicate JSON members everywhere (`object_pairs_hook`), as Tinfoil's own V3 spec and
+porting guidance already require. Then verify the signature over the exact bytes that are parsed and
+enforced. Go/V3 is not affected.
+
+**Evidence:** `python-tdx-collateral-dupkey/evidence/` contains the PoC scripts, the real Intel
+artifacts, and the outputs of the flip, end-to-end and real-HTTPS-stack runs.
+
+---
+
+## Finding 3: code-execution `/snapshot` bypasses the per-chat token and returns the plaintext workspace (High, with reachability caveat)
+
+**Component:** `code-execution-environment` (HEAD `8676c64`; the same shim block appears in release
+`v0.0.17`), using tfshim `v0.3.18` as pinned.
+
+### Root cause
+
+- `api-server/main.go:155-163` routes `/snapshot` through `checkLifecycle` only.
+- Every other path goes through `g.check`, which runs `checkAuth` (main.go:79-93) on the per-chat
+  `X-Code-Execution-Container-Auth-Token`. The webapp derives that token client-side with HKDF from the
+  chat KEK, so Tinfoil infrastructure never sees it.
+- `executor/snapshot.go:149-165` streams all of `/workspace` as a base64 tar. Its header comment reads
+  "plaintext… Encryption happens upstream".
+- The measured shim config (`tinfoil-config.yml:39-49`) exposes `/snapshot` without `authenticated:`.
+
+### Impact
+
+A single unauthenticated `POST /snapshot` to a sandbox's shim returns the full plaintext workspace:
+- the restored prior-session workspace, which is stored encrypted under the user's key;
+- user uploads that were copied into the workspace;
+- model outputs;
+- any secrets written there.
+
+This was reproduced with unmodified production-equivalent binaries: the unmodified api-server and
+executor, and the pinned tfshim, run as production uids with production capabilities.
+- Every other path returns 401/403, but `/snapshot` returns 200 with the data.
+- If the attacker overlaps the orchestrator's eviction snapshot, both requests succeed and the eviction
+  looks normal: deterministic for large workspaces, 19 of 20 trials for small ones.
+
+### Caveats
+
+- The orchestrator (`confidential-code-execution`) is private, so sandbox addressing and public
+  reachability are **inferred, not verified**.
+- Tinfoil's host, control plane and network certainly have reach. The hop uses attested TLS precisely
+  because that network is untrusted.
+- Reach by other users or the internet depends on the public per-container endpoints and on hostname
+  discovery. That is plausible but unverified; if it holds, this becomes Critical.
+- The exemption is deliberate: the orchestrator snapshots at eviction without the token (see
+  `main_test.go:208-225`). Nothing restricts the endpoint to the orchestrator.
+- The webapp currently hard-disables code execution. The harness offers it per user when it is enabled.
+
+**Fix:** require the container token on `/snapshot`, or a separate orchestrator-only credential, for
+example one derived from the encryption key the orchestrator already holds at eviction. Alternatively,
+encrypt the snapshot inside the container with the user's key, and stop exposing `/snapshot` through the
+public shim.
+
+**Evidence:** `cee-snapshot-auth-bypass/evidence/` contains run scripts, captured outputs and the race
+test.
+
+---
+
+## Finding 4: EHBP Go / tinfoil-go accept forged responses (Medium, integrity)
+
+**Components:** `tinfoil-go` (HEAD and `v0.16.1`; also the harness's pinned version);
+`encrypted-http-body-protocol` Go client `v0.3.2` and `v0.4.0`; openai-go `v3.42.0` as composed by
+tinfoil-go.
+
+### Root cause
+
+- The EHBP Go client passes through, unauthenticated, any response that has no `Ehbp-Response-Nonce` and
+  a status outside 2xx. That includes 3xx (`client.go:386-391` at HEAD).
+- It hands redirects to the outer `http.Client`.
+- tinfoil-go's EHBP `http.Client` sets no `CheckRedirect`.
+- openai-go treats every status below 400 as success (`requestconfig.go:531`).
+
+### Two attack paths
+
+- **(a) Unauthenticated 3xx.** The intermediary answers the sealed POST with a nonce-less 300, 301, 302,
+  303, 305, 306 or 399 and a plaintext JSON or SSE body. openai-go returns it as the completion. This
+  works in `NewGateway` mode too.
+- **(b) 303 downgrade.** `http.Client` re-issues the request as a bodyless GET, which EHBP neither seals
+  nor checks. The forged 200 is returned as the answer to the sealed POST. This works in direct mode,
+  with `WithBaseURL`, and through `HTTPClient()`. The last of these is the Tinfoil Chat harness pattern:
+  a forged SSE stream carrying an attacker-chosen `tool_call` was reproduced on the harness's pinned
+  tinfoil-go, and the harness auto-executes model-requested tools.
+
+### Notes
+
+- **Integrity only:** the intermediary never sees the prompt.
+- **Contradicts the spec:**
+  - SPEC §5.3 says pass-through bodies are "untrusted diagnostics; callers MUST NOT act on them as
+    authenticated application data".
+  - SPEC §7.1 claims a MitM "cannot create valid encrypted responses".
+- **Other SDKs are not affected:** tinfoil-python, tinfoil-rs and openai-node reject redirects or
+  non-2xx responses.
+- **Expect pushback:** EHBP v0.4.0's `conformance/SECURITY-AUDIT.md` lists status codes outside AEAD as a
+  known limitation. However, it assumes deployments rely on TLS or application semantics, and tinfoil-go
+  relies on neither. The 303 sealed→unsealed downgrade is not covered by that note at all.
+
+**Fix:**
+- Refuse redirects on the EHBP client (`CheckRedirect` returning `http.ErrUseLastResponse`), and never
+  follow a sealed request to an unsealed one.
+- Treat nonce-less non-2xx responses as errors before openai-go sees them.
+
+**Evidence:** `ehbp-response-forgery/evidence/`.
+
+---
+
+## Finding 5: confidential-summarizer sends requests before checking the TLS pin (Medium)
+
+**Component:** `confidential-summarizer` **v0.1.15** (latest; deployed as `summarizer.tinfoil.sh`). It
+pins `tinfoil-go v0.11.3` and `github.com/tinfoilsh/verifier v0.11.2`. Every published tag from v0.1.0 to
+v0.1.15 pins the vulnerable SDK.
+
+### Root cause
+
+- `verifier/client/roundtrip.go:22-44` (`TLSBoundRoundTripper.RoundTrip`) calls
+  `http.DefaultTransport.RoundTrip(r)` first.
+- That writes the complete request, including the `Authorization: Bearer <TINFOIL_API_KEY>` header and the
+  body, to any WebPKI-valid peer.
+- Only after the response arrives does it compare `resp.TLS` against the attested key.
+
+Upstream fixed this pattern in tinfoil-go v0.13.0, where the pin is enforced before any data is sent. The
+summarizer was released afterwards without picking up the fix.
+
+### Impact
+
+An on-path party holding a publicly trusted certificate for the router hostname receives every summarize
+request. Possible holders are the host, the DNS or control-plane operator, or anyone who passes ACME
+validation for the enclave IP. The requests contain:
+- the first ≤100 words of the first user message of each new chat (webapp, harness);
+- ≤200-word tails of model reasoning (webapp);
+- iOS chat titles and thinking summaries;
+- the summarizer's API key.
+
+The attack is noisy: each intercepted call returns 503, which clients swallow silently.
+
+**Fix:** rebuild on current tinfoil-go, which checks the pin in `VerifyConnection` before any request
+bytes are sent, or use EHBP after Finding 1 is fixed. Then cut a release.
+
+**Evidence:** `summarizer-postsend-pin/evidence/`.
+
+---
+
+## Evidence index
+
+```
+REPORT.md                       this file
+verification-verdicts.json      every independent verdict (lens, severity, confidence, evidence, caveats)
+ehbp-h2-retry-plaintext/        Finding 1: PoC repos (EHBP HEAD, EHBP v0.3.2, tinfoil-go) and evidence/
+python-tdx-collateral-dupkey/   Finding 2: evidence/ (hunter PoC, verifier scripts and outputs)
+cee-snapshot-auth-bypass/       Finding 3: evidence/ (run scripts, outputs, race test)
+ehbp-response-forgery/          Finding 4: evidence/
+summarizer-postsend-pin/        Finding 5: evidence/
+```
+
+The verifier PoC files are drop-ins for the repository checkout and version named in each file's
+directory. Most need the local Go 1.27.1, Node or Python toolchains only.

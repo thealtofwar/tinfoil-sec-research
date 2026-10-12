@@ -1,0 +1,7 @@
+# Verifier reproduction (2026-10-08), all loopback, pristine repo untouched
+cp -a /root/tinfoil-review/repos/tinfoil-webapp $V/tinfoil-webapp && cd $V/tinfoil-webapp && source /root/tinfoil-review/env.sh && npm ci --ignore-scripts   # exit 0, 1m01s (npm-ci.log)
+# hunter tests copied verbatim; only the dump path and attacker port were rewritten (44443->48443); own test added: tests/poc/verifier-streaming-chunked.test.tsx
+npx vitest run tests/poc/markdown-image-exfil.test.tsx tests/poc/dump-rendered-message.test.tsx tests/poc/verifier-streaming-chunked.test.tsx --reporter=verbose --silent=false   # 7/7 pass (vitest-output.txt)
+cd $V/browser-poc && openssl req -x509 -newkey rsa:2048 -nodes -keyout key.pem -out cert.pem -days 2 -subj "/CN=127.0.0.1" -addext "subjectAltName=IP:127.0.0.1"
+npm i playwright@1.57.0 && PLAYWRIGHT_HOST_PLATFORM_OVERRIDE=ubuntu24.04-x64 npx playwright install chromium
+node run.mjs   # run.mjs identical to hunter's modulo repo path and ports 48443/48444; exit 0 (output.txt)

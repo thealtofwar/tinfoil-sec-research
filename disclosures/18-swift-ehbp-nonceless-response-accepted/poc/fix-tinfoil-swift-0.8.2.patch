@@ -1,0 +1,26 @@
+--- a/Sources/TinfoilAI/EHBPURLSession.swift	2026-10-11 19:21:37.198704988 +0000
++++ b/Sources/TinfoilAI/EHBPURLSession.swift	2026-10-11 19:21:37.215148990 +0000
+@@ -437,6 +437,11 @@
+                     }
+                 }
+ 
++                // FIX: a sealed request must get a sealed (nonce-bearing) response (SPEC 5.3).
++                if prepared.body?.isEmpty == false,
++                   response.value(forHTTPHeaderField: EHBPProtocol.responseNonceHeader) == nil {
++                    throw EHBPError.missingHeader(EHBPProtocol.responseNonceHeader)
++                }
+                 delegate?.urlSession(
+                     session,
+                     dataTask: self,
+@@ -632,6 +637,11 @@
+                 continue
+             }
+ 
++            // FIX: a sealed request must get a sealed (nonce-bearing) response (SPEC 5.3).
++            if prepared.body?.isEmpty == false,
++               response.value(forHTTPHeaderField: EHBPProtocol.responseNonceHeader) == nil {
++                throw EHBPError.missingHeader(EHBPProtocol.responseNonceHeader)
++            }
+             return (data, response)
+         }
+         throw EHBPReplayPolicy.attemptsExhausted

@@ -1,0 +1,23 @@
+Name: tinfoil
+Version: 0.14.0
+real PCK issuer: Intel SGX PCK Platform CA | fmspc 50806f000000
+Intel platform CRL: 57 revoked, nextUpdate 2026-11-07; using revoked serial 6fc34e5023e728923435d61aa4b83c618166ad35
+
+[A control: genuine platform CRL + platform chain]
+    fetched as ca_type='platform', CRL issuer='Intel SGX PCK Platform CA'; cached: 'Intel SGX PCK Platform CA'
+    -> REJECT PCK certificate has been revoked. Serial: 6fc34e5023e728923435d61aa4b83c618166ad35, Revocation date: 2026-10-08 00:07:26+00:00
+
+[B control: platform CRL + processor chain (bad sig)]
+    fetch failed
+    -> REJECT PCK CRL (platform) signature verification failed
+
+[C attack:  processor CRL + processor chain]
+    fetched as ca_type='platform', CRL issuer='Intel SGX PCK Processor CA'; cached: 'Intel SGX PCK Processor CA'
+    -> ACCEPT (revoked PCK not detected)
+
+[D attack:  Root CA CRL + [root, root] chain]
+    fetched as ca_type='platform', CRL issuer='Intel SGX Root CA'; cached: 'Intel SGX Root CA'
+    -> ACCEPT (revoked PCK not detected)
+
+RESULT: {'A': 'REJECT', 'B': 'REJECT', 'C': 'ACCEPT', 'D': 'ACCEPT'}
+matches expected: True

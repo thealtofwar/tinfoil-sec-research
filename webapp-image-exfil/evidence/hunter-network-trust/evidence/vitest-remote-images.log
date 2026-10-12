@@ -1,0 +1,9 @@
+
+ RUN  v4.1.10 /root/tinfoil-review/work/webapp-network-trust/tinfoil-webapp
+
+
+ Test Files  1 passed (1)
+      Tests  5 passed (5)
+   Start at  01:11:50
+   Duration  3.09s (transform 1.23s, setup 58ms, import 2.65s, tests 63ms, environment 200ms)
+

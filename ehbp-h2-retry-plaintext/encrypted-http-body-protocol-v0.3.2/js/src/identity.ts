@@ -1,0 +1,521 @@
+import { CipherSuite, type SenderContext, type Key } from 'hpke';
+import { KEM_DHKEM_X25519_HKDF_SHA256, KDF_HKDF_SHA256, AEAD_AES_256_GCM } from '@panva/hpke-noble';
+import { PROTOCOL, HPKE_CONFIG } from './protocol.js';
+import {
+  deriveResponseKeys,
+  decryptChunk,
+  hexToBytes,
+  bytesToHex,
+  HPKE_REQUEST_INFO,
+  EXPORT_LABEL,
+  EXPORT_LENGTH,
+  RESPONSE_NONCE_LENGTH,
+  ResponseKeyMaterial,
+} from './derive.js';
+import { ProtocolError, DecryptionError } from './errors.js';
+import { forwardedRequestInit } from './request-options.js';
+
+/**
+ * Request context for response decryption.
+ * Holds the HPKE sender context needed to derive response keys.
+ */
+export interface RequestContext {
+  senderContext: SenderContext;
+  requestEnc: Uint8Array;
+}
+
+/**
+ * Serializable token containing the pre-computed bytes needed to decrypt a response.
+ */
+export interface SessionRecoveryToken {
+  exportedSecret: Uint8Array;
+  requestEnc: Uint8Array;
+}
+
+/**
+ * Creates a new CipherSuite for X25519/HKDF-SHA256/AES-256-GCM
+ */
+function createSuite(): CipherSuite {
+  return new CipherSuite(
+    KEM_DHKEM_X25519_HKDF_SHA256,
+    KDF_HKDF_SHA256,
+    AEAD_AES_256_GCM
+  );
+}
+
+/**
+ * Identity class for managing HPKE key pairs and encryption/decryption
+ */
+export class Identity {
+  private suite: CipherSuite;
+  private publicKey: Key;
+  private privateKey: Key;
+
+  constructor(suite: CipherSuite, publicKey: Key, privateKey: Key) {
+    this.suite = suite;
+    this.publicKey = publicKey;
+    this.privateKey = privateKey;
+  }
+
+  /**
+   * Generate a new identity with X25519 key pair
+   */
+  static async generate(): Promise<Identity> {
+    const suite = createSuite();
+    const { publicKey, privateKey } = await suite.GenerateKeyPair(true); // extractable
+
+    return new Identity(suite, publicKey, privateKey);
+  }
+
+  /**
+   * Create identity from JSON string
+   */
+  static async fromJSON(json: string): Promise<Identity> {
+    const data = JSON.parse(json);
+    const suite = createSuite();
+
+    // Deserialize keys using the suite
+    const publicKey = await suite.DeserializePublicKey(new Uint8Array(data.publicKey));
+    const privateKey = await suite.DeserializePrivateKey(new Uint8Array(data.privateKey), true);
+
+    return new Identity(suite, publicKey, privateKey);
+  }
+
+  /**
+   * Convert identity to JSON string
+   */
+  async toJSON(): Promise<string> {
+    const publicKeyBytes = await this.suite.SerializePublicKey(this.publicKey);
+    const privateKeyBytes = await this.suite.SerializePrivateKey(this.privateKey);
+
+    return JSON.stringify({
+      publicKey: Array.from(publicKeyBytes),
+      privateKey: Array.from(privateKeyBytes),
+    });
+  }
+
+  /**
+   * Get public key
+   */
+  getPublicKey(): Key {
+    return this.publicKey;
+  }
+
+  /**
+   * Get public key as hex string
+   */
+  async getPublicKeyHex(): Promise<string> {
+    const exported = await this.suite.SerializePublicKey(this.publicKey);
+    return bytesToHex(exported);
+  }
+
+  /**
+   * Get private key
+   */
+  getPrivateKey(): Key {
+    return this.privateKey;
+  }
+
+  /**
+   * Marshal public key configuration for server key distribution
+   * Implements RFC 9458 format
+   */
+  async marshalConfig(): Promise<Uint8Array> {
+    const kemId = HPKE_CONFIG.KEM;
+    const kdfId = HPKE_CONFIG.KDF;
+    const aeadId = HPKE_CONFIG.AEAD;
+
+    // Export public key as raw bytes
+    const publicKeyBytes = await this.suite.SerializePublicKey(this.publicKey);
+
+    // Key ID (1 byte) + KEM ID (2 bytes) + Public Key + Cipher Suites
+    const keyId = 0;
+    const publicKeySize = publicKeyBytes.length;
+    const cipherSuitesSize = 2 + 2; // KDF ID + AEAD ID
+
+    const buffer = new Uint8Array(1 + 2 + publicKeySize + 2 + cipherSuitesSize);
+    let offset = 0;
+
+    // Key ID
+    buffer[offset++] = keyId;
+
+    // KEM ID
+    buffer[offset++] = (kemId >> 8) & 0xff;
+    buffer[offset++] = kemId & 0xff;
+
+    // Public Key
+    buffer.set(publicKeyBytes, offset);
+    offset += publicKeySize;
+
+    // Cipher Suites Length (2 bytes)
+    buffer[offset++] = (cipherSuitesSize >> 8) & 0xff;
+    buffer[offset++] = cipherSuitesSize & 0xff;
+
+    // KDF ID
+    buffer[offset++] = (kdfId >> 8) & 0xff;
+    buffer[offset++] = kdfId & 0xff;
+
+    // AEAD ID
+    buffer[offset++] = (aeadId >> 8) & 0xff;
+    buffer[offset++] = aeadId & 0xff;
+
+    return buffer;
+  }
+
+  /**
+   * Unmarshal public configuration from server
+   */
+  static async unmarshalPublicConfig(data: Uint8Array): Promise<Identity> {
+    let offset = 0;
+
+    // Read Key ID
+    const keyId = data[offset++];
+
+    // Read KEM ID
+    const kemId = (data[offset++] << 8) | data[offset++];
+
+    // Read Public Key (32 bytes for X25519)
+    const publicKeySize = 32;
+    const publicKeyBytes = data.slice(offset, offset + publicKeySize);
+    offset += publicKeySize;
+
+    // Read Cipher Suites Length
+    const cipherSuitesLength = (data[offset++] << 8) | data[offset++];
+
+    // Parse all cipher suites (each suite is 4 bytes: 2 for KDF, 2 for AEAD)
+    const suites = [];
+    const cipherSuitesEnd = offset + cipherSuitesLength;
+    while (offset < cipherSuitesEnd) {
+      const kdfId = (data[offset++] << 8) | data[offset++];
+      const aeadId = (data[offset++] << 8) | data[offset++];
+      suites.push({ kdfId, aeadId });
+    }
+
+    if (suites.length === 0) {
+      throw new ProtocolError('No cipher suites found in config');
+    }
+
+    // Use the first cipher suite
+    const firstSuite = suites[0];
+
+    // Validate that we support this cipher suite
+    if (firstSuite.kdfId !== HPKE_CONFIG.KDF || firstSuite.aeadId !== HPKE_CONFIG.AEAD) {
+      throw new ProtocolError(
+        `Unsupported cipher suite: KDF=0x${firstSuite.kdfId.toString(16)}, AEAD=0x${firstSuite.aeadId.toString(16)}`
+      );
+    }
+
+    return Identity.fromPublicKeyBytes(publicKeyBytes);
+  }
+
+  /**
+   * Create an Identity from a raw public key hex string.
+   * Uses the default cipher suite (X25519/HKDF-SHA256/AES-256-GCM).
+   *
+   * This is used by clients who already have the server's public key
+   * and don't need to fetch it.
+   */
+  static async fromPublicKeyHex(publicKeyHex: string): Promise<Identity> {
+    const publicKeyBytes = hexToBytes(publicKeyHex);
+    if (publicKeyBytes.length !== 32) {
+      throw new ProtocolError(`Invalid public key length: expected 32, got ${publicKeyBytes.length}`);
+    }
+
+    return Identity.fromPublicKeyBytes(publicKeyBytes);
+  }
+
+  /**
+   * Create an Identity from raw public key bytes.
+   * Uses the default cipher suite (X25519/HKDF-SHA256/AES-256-GCM).
+   *
+   * For public-key-only identities (client-side use), we create a placeholder
+   * private key that won't be used. TODO: refactor Identity to not require
+   * a private key for client-side use.
+   */
+  private static async fromPublicKeyBytes(publicKeyBytes: Uint8Array): Promise<Identity> {
+    const suite = createSuite();
+    const publicKey = await suite.DeserializePublicKey(publicKeyBytes);
+    const placeholderPrivateKey = await suite.DeserializePrivateKey(new Uint8Array(32), false);
+
+    return new Identity(suite, publicKey, placeholderPrivateKey);
+  }
+
+  /**
+   * Encrypt request body and return context for response decryption.
+   *
+   * This method is called on the SERVER's identity (public key only).
+   * It:
+   * 1. Creates an HPKE sender context to this identity's public key
+   * 2. Encrypts the request body
+   * 3. Returns a RequestContext that must be used to decrypt the response
+   */
+  async encryptRequestWithContext(
+    request: Request
+  ): Promise<{ request: Request; context: RequestContext | null }> {
+    const body = await request.arrayBuffer();
+
+    // Bodyless requests pass through unmodified - no HPKE context needed.
+    // See SPEC.md Section 5.1: "When the request has no payload body, an encrypted
+    // response is not possible (since there is no HPKE context to derive response
+    // keys from). Such requests pass through unmodified."
+    if (body.byteLength === 0) {
+      return {
+        request: new Request(request.url, {
+          ...forwardedRequestInit(request),
+          method: request.method,
+          headers: request.headers,
+          body: null,
+        }),
+        context: null,
+      };
+    }
+
+    // Create sender context for encryption with info parameter for domain separation
+    const infoBytes = new TextEncoder().encode(HPKE_REQUEST_INFO);
+    const { encapsulatedSecret, ctx } = await this.suite.SetupSender(this.publicKey, {
+      info: infoBytes,
+    });
+
+    // Store context for response decryption
+    const context: RequestContext = {
+      senderContext: ctx,
+      requestEnc: encapsulatedSecret,
+    };
+
+    // Set headers - only encapsulated key for requests with body
+    const headers = new Headers(request.headers);
+    headers.set(PROTOCOL.ENCAPSULATED_KEY_HEADER, bytesToHex(context.requestEnc));
+
+    // Encrypt the body
+    const encrypted = await ctx.Seal(new Uint8Array(body));
+
+    // Create chunked format: 4-byte length header + encrypted data
+    const chunkLength = new Uint8Array(4);
+    new DataView(chunkLength.buffer).setUint32(0, encrypted.byteLength, false);
+
+    const chunkedData = new Uint8Array(4 + encrypted.byteLength);
+    chunkedData.set(chunkLength, 0);
+    chunkedData.set(encrypted, 4);
+
+    return {
+      request: new Request(request.url, {
+        ...forwardedRequestInit(request),
+        method: request.method,
+        headers,
+        body: chunkedData,
+        duplex: 'half',
+      } as RequestInit),
+      context,
+    };
+  }
+
+  /**
+   * Decrypt response using keys derived from request context.
+   *
+   * This method:
+   * 1. Reads the response nonce from Ehbp-Response-Nonce header
+   * 2. Exports a secret from the HPKE sender context
+   * 3. Derives response keys using HKDF
+   * 4. Decrypts the response body
+   */
+  async decryptResponseWithContext(
+    response: Response,
+    context: RequestContext
+  ): Promise<Response> {
+    const token = await extractSessionRecoveryToken(context);
+    return decryptResponseWithToken(response, token);
+  }
+}
+
+/**
+ * Extract a serializable token from a RequestContext by exporting the HPKE secret.
+ * The returned token contains only plain bytes and can be stored/serialized.
+ */
+export async function extractSessionRecoveryToken(context: RequestContext): Promise<SessionRecoveryToken> {
+  const exportLabelBytes = new TextEncoder().encode(EXPORT_LABEL);
+  const exportedSecret = new Uint8Array(await context.senderContext.Export(exportLabelBytes, EXPORT_LENGTH));
+  return {
+    exportedSecret,
+    requestEnc: new Uint8Array(context.requestEnc),
+  };
+}
+
+/**
+ * Serialize a SessionRecoveryToken to a JSON string with hex-encoded fields.
+ * See SPEC.md Section 6.1.1.
+ */
+export function serializeSessionRecoveryToken(token: SessionRecoveryToken): string {
+  return JSON.stringify({
+    exportedSecret: bytesToHex(token.exportedSecret),
+    requestEnc: bytesToHex(token.requestEnc),
+  });
+}
+
+/**
+ * Deserialize a SessionRecoveryToken from a JSON string with hex-encoded fields.
+ * See SPEC.md Section 6.1.1.
+ */
+export function deserializeSessionRecoveryToken(json: string): SessionRecoveryToken {
+  const parsed = JSON.parse(json);
+  return {
+    exportedSecret: hexToBytes(parsed.exportedSecret),
+    requestEnc: hexToBytes(parsed.requestEnc),
+  };
+}
+
+/**
+ * Decrypt a response using a SessionRecoveryToken.
+ *
+ * The returned Response exposes an incremental authenticated plaintext stream:
+ * each complete frame is available before the encrypted response reaches EOF.
+ * Cancelling the returned body cancels the encrypted source body.
+ */
+export async function decryptResponseWithToken(
+  response: Response,
+  token: SessionRecoveryToken,
+  onStreamError?: () => void,
+  onStreamComplete?: () => void,
+): Promise<Response> {
+  const responseNonceHex = response.headers.get(PROTOCOL.RESPONSE_NONCE_HEADER);
+  if (!response.body && !responseNonceHex) {
+    return response;
+  }
+
+  if (!responseNonceHex) {
+    throw new ProtocolError(`Missing ${PROTOCOL.RESPONSE_NONCE_HEADER} header`);
+  }
+
+  const responseNonce = hexToBytes(responseNonceHex);
+  if (responseNonce.length !== RESPONSE_NONCE_LENGTH) {
+    throw new ProtocolError(`Invalid response nonce length`);
+  }
+  if (!response.body) {
+    onStreamComplete?.();
+    return response;
+  }
+
+  const km = await deriveResponseKeys(token.exportedSecret, token.requestEnc, responseNonce);
+  const decryptedStream = createDecryptStream(
+    response.body,
+    km,
+    onStreamError,
+    onStreamComplete,
+  );
+
+  // Framing headers describe the encrypted body, not the decrypted stream.
+  // Consumers that forward the response headers verbatim (for example a
+  // proxy) would otherwise announce a body length that no longer matches
+  // what is written, truncating the reply.
+  const headers = new Headers(response.headers);
+  headers.delete('content-length');
+  headers.delete('transfer-encoding');
+
+  return new Response(decryptedStream, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
+}
+
+const MAX_RESPONSE_CHUNK_BYTES = 64 * 1024 * 1024;
+
+function createDecryptStream(
+  body: ReadableStream<Uint8Array>,
+  km: ResponseKeyMaterial,
+  onStreamError?: () => void,
+  onStreamComplete?: () => void,
+): ReadableStream<Uint8Array> {
+  let buffer = new Uint8Array(0);
+  let seq = 0;
+  const reader = body.getReader();
+  let consumerCancelled = false;
+
+  return new ReadableStream({
+    async pull(controller) {
+      // Erroring the output stream does not invoke the cancel() handler below,
+      // so the upstream body must be cancelled explicitly; otherwise a rejected
+      // (e.g. oversized) chunk leaves the underlying response downloading.
+      const fail = (error: Error) => {
+        try {
+          onStreamError?.();
+        } catch {
+          // Observer failures must not interrupt stream cleanup.
+        }
+        try {
+          controller.error(error);
+        } finally {
+          reader.cancel(error).catch(() => {});
+        }
+      };
+
+      while (true) {
+        if (buffer.length >= 4) {
+          const chunkLength =
+            ((buffer[0] << 24) | (buffer[1] << 16) | (buffer[2] << 8) | buffer[3]) >>> 0;
+
+          if (chunkLength === 0) {
+            buffer = buffer.slice(4);
+            continue;
+          }
+
+          if (chunkLength > MAX_RESPONSE_CHUNK_BYTES) {
+            fail(new ProtocolError('response chunk exceeds maximum allowed size'));
+            return;
+          }
+
+          if (buffer.length >= 4 + chunkLength) {
+            const ciphertext = buffer.slice(4, 4 + chunkLength);
+            buffer = buffer.slice(4 + chunkLength);
+
+            try {
+              const plaintext = await decryptChunk(km, seq++, ciphertext);
+              controller.enqueue(plaintext);
+              return;
+            } catch (error) {
+              fail(new DecryptionError(
+                `Decryption failed at chunk ${seq - 1}`,
+                { cause: error }
+              ));
+              return;
+            }
+          }
+        }
+
+        let result: ReadableStreamReadResult<Uint8Array>;
+        try {
+          result = await reader.read();
+        } catch (error) {
+          if (consumerCancelled) {
+            return;
+          }
+          fail(error instanceof Error ? error : new Error('Encrypted response read failed', {
+            cause: error,
+          }));
+          return;
+        }
+        const { done, value } = result;
+        if (done) {
+          if (consumerCancelled) {
+            return;
+          }
+          if (buffer.length !== 0) {
+            fail(new ProtocolError('truncated encrypted response chunk'));
+          } else {
+            onStreamComplete?.();
+            controller.close();
+          }
+          return;
+        }
+
+        const newBuffer = new Uint8Array(buffer.length + value.length);
+        newBuffer.set(buffer);
+        newBuffer.set(value, buffer.length);
+        buffer = newBuffer;
+      }
+    },
+    cancel(reason) {
+      consumerCancelled = true;
+      return reader.cancel(reason);
+    },
+  });
+}

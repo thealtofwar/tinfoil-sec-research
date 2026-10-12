@@ -1,0 +1,110 @@
+OK                   sigstore/001-happy-path-snp-tdx-multiplatform  expected=accept js=accept 
+DIVERGENCE-ACCEPTS   sigstore/010-workflow-ref-prefix-mismatch  expected=reject js=accept 
+DIVERGENCE-ACCEPTS   sigstore/011-oidc-issuer-mismatch  expected=reject js=accept 
+OK                   sigstore/012-workflow-repository-mismatch  expected=reject js=reject -- Sigstore code bundle verification failed / Certificate's GitHubWorkflowRepository does not match (got 'tinfoilsh/confidential-model-router', expected 'evil-owner/e
+DIVERGENCE-ACCEPTS   sigstore/013-predicate-type-not-allowed  expected=reject js=accept 
+DIVERGENCE-ACCEPTS   sigstore/014-in-toto-statement-type-not-allowed  expected=reject js=accept 
+DIVERGENCE-ACCEPTS   sigstore/015-payload-type-mismatch  expected=reject js=accept 
+OK                   sigstore/016-subject-digest-mismatch  expected=reject js=reject -- Release digest mismatch: The release digest from GitHub (0000000000000000000000000000000000000000000
+DIVERGENCE-REJECTS   sigstore/017-subject-digest-uppercase-accepted  expected=accept js=reject -- Release digest mismatch: The release digest from GitHub (5ED9D5C942528EC2EEB759919827F1BC2183C6810F8
+OK                   sigstore/018-predicate-types-allowed-null-accepts  expected=accept js=accept 
+OK                   sigstore/019-in-toto-statement-types-allowed-null-accepts  expected=accept js=accept 
+CRASH                sigstore/020-trust-root-invalid-json  expected=reject js=reject -- runner crashed: file:///root/tinfoil-review/work/js-sdk-verifier/tinfoil-js/packages/verifier/poc/tm
+OK                   sigstore/021-trust-root-no-rekor-keys  expected=reject js=reject -- Sigstore code bundle verification failed / Invalid checkpoint signature
+OK                   sigstore/022-trust-root-no-fulcio-cas  expected=reject js=reject -- Sigstore code bundle verification failed / Failed to verify certificate chain: No valid CAs found
+OK                   sigstore/023-trust-root-no-ct-log-keys  expected=reject js=reject -- Sigstore code bundle verification failed / Could not find any valid CT logs in sigstore root.
+OK                   sigstore/030-bundle-missing-dsse-envelope  expected=reject js=reject -- Sigstore code bundle verification failed / Bundle does not contain a DSSE envelope
+OK                   sigstore/031-bundle-empty-tlog-entries  expected=reject js=reject -- Sigstore code bundle verification failed / Not enough tlog entries: 0 < 1
+OK                   sigstore/032-dsse-signature-bit-flipped  expected=reject js=reject -- Sigstore code bundle verification failed / DSSE signature verification failed
+OK                   sigstore/033-rekor-root-hash-mismatch  expected=reject js=reject -- Sigstore code bundle verification failed / Calculated root hash does not match inclusion proof
+OK                   sigstore/034-rekor-inclusion-hashes-corrupted  expected=reject js=reject -- Sigstore code bundle verification failed / Calculated root hash does not match inclusion proof
+OK                   sigstore/035-bundle-empty-signatures-array  expected=reject js=reject -- Sigstore code bundle verification failed / DSSE envelope must have exactly 1 signature, got 0
+OK                   sigstore/036-bundle-missing-verification-material  expected=reject js=reject -- Sigstore code bundle verification failed / Cannot read properties of undefined (reading 'certificate')
+OK                   sigstore/050-workflow-ref-prefix-more-specific-accepts  expected=accept js=accept 
+DIVERGENCE-ACCEPTS   sigstore/051-predicate-types-allowed-empty-rejects-all  expected=reject js=accept 
+DIVERGENCE-ACCEPTS   sigstore/052-in-toto-statement-types-allowed-empty-rejects-all  expected=reject js=accept 
+OK                   sigstore/060-workflow-ref-heads-trojan  expected=reject js=reject -- Sigstore certificate verification failed: Workflow reference "refs/heads/main@refs/tags/v1" does not
+OK                   sigstore/060b-cert-ext-mismatch-ref-vs-buildsigner  expected=reject js=reject -- Sigstore certificate verification failed: Workflow reference "refs/heads/main" does not match expect
+OK                   sigstore/061-workflow-ref-bare-heads-branch  expected=reject js=reject -- Sigstore certificate verification failed: Workflow reference "refs/heads/main" does not match expect
+DIVERGENCE-ACCEPTS   sigstore/062-predicate-missing-tdx-rtmr2  expected=reject js=accept 
+OK                   sigstore/063-subject-missing  expected=reject js=reject -- Sigstore code bundle verification failed / Cannot read properties of undefined (reading 'digest')
+OK                   sigstore/064-rekor-integrated-time-outside-cert-validity  expected=reject js=reject -- Sigstore code bundle verification failed / Artifact signing was logged outside of the certificate validity.
+OK                   sigstore/065-cert-no-scts  expected=reject js=reject -- Sigstore code bundle verification failed / SCT extension is present but contains no SCTs
+OK                   sigstore/066-cert-duplicate-sct-log  expected=reject js=reject -- Sigstore code bundle verification failed / Duplicate SCT found for log ID: 0d7c2d556c20fb255abd7bec904d0775913eb45b9cf6770af3a129a6aca102d6
+OK                   sigstore/067-bundle-two-tlog-entries  expected=accept js=accept 
+OK                   sigstore/068-cert-only-v1-oidc-issuer  expected=accept js=accept 
+DIVERGENCE-REJECTS   sigstore/069-cert-v1-v2-oidc-disagree-v2-wins  expected=accept js=reject -- Sigstore code bundle verification failed / Certificate's OIDCIssuer does not match (got 'https://gitlab.com/oidc', expected 'https://token.actions.githubuserconten
+DIVERGENCE-ACCEPTS   sigstore/069b-cert-v1-trusted-v2-untrusted  expected=reject js=accept 
+OK                   sigstore/070-cert-missing-workflow-ref-ext  expected=reject js=reject -- Sigstore certificate verification failed: Missing GitHub workflow reference extension
+OK                   sigstore/071-cert-missing-build-signer-uri  expected=accept js=accept 
+OK                   sigstore/072-dsse-duplicate-signatures  expected=reject js=reject -- Sigstore code bundle verification failed / DSSE envelope must have exactly 1 signature, got 2
+OK                   sigstore/073-subject-array-only-first-checked  expected=reject js=reject -- Release digest mismatch: The release digest from GitHub (5ed9d5c942528ec2eeb759919827f1bc2183c6810f8
+OK                   sigstore/074-in-toto-statement-extra-field  expected=reject js=reject -- In-toto statement has unknown top-level field(s): _spec_version
+OK                   sigstore/075-cert-no-oidc-issuer-extension  expected=reject js=reject -- Sigstore code bundle verification failed / Certificate does not contain OIDCIssuer (1.3.6.1.4.1.57264.1.1) extension
+DIVERGENCE-REJECTS   sigstore/076-workflow-ref-prefix-empty-accepts-any  expected=accept js=reject -- Sigstore certificate verification failed: Workflow reference "refs/heads/main" does not match expect
+OK                   sigstore/077-predicate-type-trailing-slash  expected=reject js=reject -- Unsupported in-toto predicate type: "https://tinfoil.sh/predicate/snp-tdx-multiplatform/v1/". Only S
+DIVERGENCE-ACCEPTS   sigstore/078-in-toto-statement-type-case-variation  expected=reject js=accept 
+OK                   sigstore/079-bundle-cert-in-x509-chain-format  expected=reject js=reject -- Legacy x509CertificateChain bundle format is not supported; only the v0.3 single-certificate format 
+OK                   sigstore/080-predicate-missing-snp-measurement  expected=reject js=reject -- Invalid Sigstore bundle: SNP/TDX multiplatform predicate is missing the snp_measurement field
+DIVERGENCE-ACCEPTS   sigstore/081-predicate-missing-tdx-rtmr1  expected=reject js=accept 
+OK                   sigstore/090-observer-timestamp-missing  expected=reject js=reject -- Sigstore code bundle verification failed / Rekor v2 bundles require a timestamp for verification.
+OK                   sigstore/091-fulcio-cert-untrusted-root  expected=reject js=reject -- Sigstore code bundle verification failed / Failed to verify certificate chain: no valid certificate path found
+OK                   sigstore/092-sct-signature-invalid  expected=reject js=reject -- Sigstore code bundle verification failed / SCT verification failed
+OK                   sigstore/093-rekor-checkpoint-signature-tampered  expected=reject js=reject -- Sigstore code bundle verification failed / Invalid checkpoint signature
+OK                   attestation-sev/200-real-sev-snp-happy  expected=accept js=accept 
+OK                   attestation-sev/210-wrong-report-version  expected=reject js=reject -- Failed to parse SEV-SNP attestation report / Invalid attestation report: Reserved bytes in version section are not zeroed
+OK                   attestation-sev/211-truncated-report  expected=reject js=reject -- Failed to parse SEV-SNP attestation report / Invalid attestation report: Data size (1183 bytes) is smaller than expected SEV-SNP report size (1184 bytes)
+OK                   attestation-sev/220-signature-byte-flipped  expected=reject js=reject -- Attestation report signature is invalid: The report was not signed by the expected VCEK key
+OK                   attestation-sev/221-signed-region-measurement-tampered  expected=reject js=reject -- Attestation report signature is invalid: The report was not signed by the expected VCEK key
+OK                   attestation-sev/230-vcek-first-byte-flipped  expected=reject js=reject -- AMD certificate chain verification failed / Cannot read properties of undefined (reading 'subs')
+OK                   attestation-sev/231-vcek-signature-tampered  expected=reject js=reject -- VCEK certificate signature verification failed: Not signed by ASK
+OK                   attestation-sev/240-vcek-expired  expected=reject js=reject -- VCEK certificate has expired or is not yet valid
+OK                   attestation-sev/250-ark-self-signature-tampered  expected=reject js=reject -- AMD Root Key (ARK) certificate signature verification failed: Not properly self-signed
+OK                   attestation-sev/251-ask-not-signed-by-ark  expected=reject js=reject -- AMD SEV Key (ASK) certificate signature verification failed: Not signed by ARK
+OK                   attestation-sev/252-chain-non-amd-distinguished-name  expected=reject js=reject -- Invalid ARK certificate: Issuer is not a valid AMD organization
+OK                   attestation-sev/253-vcek-malformed  expected=reject js=reject -- request past end of buffer
+OK                   attestation-sev/260-tcb-snp-spl-below-min  expected=reject js=reject -- Current TCB TCBParts(bootloader=10, tee=0, snp=13, microcode=84) does not meet minimum requirements 
+OK                   attestation-sev/261-provisional-committed-ne-current  expected=reject js=reject -- Firmware version mismatch: Committed build (31) does not match current build (30). This may indicate
+OK                   attestation-sev/262-firmware-build-below-min  expected=reject js=reject -- Current SNP firmware build number 10 is less than minimum required 21
+OK                   attestation-sev/263-firmware-version-below-min  expected=reject js=reject -- Current SNP firmware version 1.0 is less than minimum required 1.55
+OK                   attestation-sev/264-platform-info-tsme-not-set  expected=reject js=reject -- Platform policy violation: TSME (transparent SME) is required but not enabled
+DIVERGENCE-ACCEPTS   attestation-sev/265-vmpl-out-of-range  expected=reject js=accept 
+OK                   attestation-sev/266-vmpl-nonzero-in-range  expected=accept js=accept 
+OK                   attestation-sev/267-mask-chip-id-accept  expected=accept js=accept 
+OK                   attestation-sev/268-vlek-signed-report  expected=reject js=reject -- Failed to parse SEV-SNP attestation report / Unsupported signing key type: This verifier only supports VCEK-signed attestation reports (got signing key type 1)
+DIVERGENCE-ACCEPTS   attestation-sev/270-ciphertext-hiding-not-enabled  expected=reject js=accept 
+DIVERGENCE-ACCEPTS   attestation-sev/271-alias-check-not-complete  expected=reject js=accept 
+DIVERGENCE-ACCEPTS   attestation-sev/272-platform-info-ecc-not-enabled  expected=reject js=accept 
+DIVERGENCE-ACCEPTS   attestation-sev/273-platform-info-rapl-not-disabled  expected=reject js=accept 
+DIVERGENCE-ACCEPTS   attestation-sev/274-platform-info-tio-not-enabled  expected=reject js=accept 
+OK                   attestation-sev/275-platform-info-tio-enabled  expected=accept js=accept 
+DIVERGENCE-ACCEPTS   attestation-sev/400-measurement-pin-mismatch  expected=reject js=accept 
+DIVERGENCE-ACCEPTS   attestation-sev/410-host-data-pin-mismatch  expected=reject js=accept 
+DIVERGENCE-ACCEPTS   attestation-sev/420-report-data-pin-mismatch  expected=reject js=accept 
+DIVERGENCE-ACCEPTS   attestation-sev/430-id-key-digest-pin-mismatch  expected=reject js=accept 
+DIVERGENCE-ACCEPTS   attestation-sev/440-author-key-digest-pin-mismatch  expected=reject js=accept 
+DIVERGENCE-ACCEPTS   attestation-sev/450-tcb-bl-spl-below-min  expected=reject js=accept 
+DIVERGENCE-ACCEPTS   attestation-sev/451-tcb-ucode-spl-below-min  expected=reject js=accept 
+OK                   attestation-sev/452-tcb-launch-below-min  expected=reject js=reject -- Launch TCB TCBParts(bootloader=10, tee=0, snp=13, microcode=84) does not meet minimum requirements T
+OK                   attestation-sev/460-measurement-pin-match  expected=accept js=accept 
+OK                   attestation-sev/461-all-pins-match  expected=accept js=accept 
+OK                   attestation-sev/600-synth-debug-bit-set  expected=reject js=reject -- Security policy violation: Debug mode is enabled but not allowed. The enclave must have debug disabl
+OK                   attestation-sev/601-synth-reserved-mbo-cleared  expected=reject js=reject -- Failed to parse SEV-SNP attestation report / Invalid attestation report: Policy field has invalid reserved bit (must be 1)
+OK                   attestation-sev/602-synth-reserved-mbz-set  expected=reject js=reject -- Failed to parse SEV-SNP attestation report / Invalid attestation report: Policy field has non-zero reserved bits
+OK                   attestation-sev/603-synth-migrate-ma-set  expected=reject js=reject -- Security policy violation: Migration agent is enabled but not allowed
+OK                   attestation-sev/604-synth-baseline-accept  expected=accept js=accept 
+OK                   attestation-sev/605-guest-policy-cxl-allowed  expected=reject js=reject -- Security policy violation: CXL (Compute Express Link) is enabled but not allowed
+OK                   attestation-sev/606-guest-policy-mem-aes256-xts  expected=reject js=reject -- Security policy violation: AES-256-XTS memory encryption mode is enabled but not allowed
+OK                   attestation-sev/700-vcek-hwid-mismatch  expected=reject js=reject -- VCEK hardware ID mismatch: Certificate HWID does not match the chip ID in the attestation report
+OK                   attestation-sev/701-vcek-bl-spl-mismatch  expected=reject js=reject -- VCEK TCB mismatch: Bootloader SPL in certificate (5) does not match report (10)
+OK                   attestation-sev/702-vcek-ucode-spl-mismatch  expected=reject js=reject -- VCEK TCB mismatch: Microcode SPL in certificate (10) does not match report (84)
+OK                   attestation-sev/703-vcek-missing-hwid-extension  expected=reject js=reject -- Invalid VCEK certificate: Missing or malformed hardware ID (HWID) extension
+OK                   enclave-cert/700-enclave-cert-happy  expected=accept js=accept 
+OK                   enclave-cert/710-hpke-key-mismatch  expected=reject js=reject -- HPKE key mismatch: The encryption key in the certificate does not match the attested key
+OK                   enclave-cert/720-attestation-hash-mismatch  expected=reject js=reject -- Attestation hash mismatch: The hash in the certificate does not match the attestation document
+OK                   enclave-cert/730-missing-hpke-san  expected=reject js=reject -- Invalid enclave certificate: No HPKE key embedded in Subject Alternative Names
+OK                   enclave-cert/740-missing-hatt-san  expected=reject js=reject -- Invalid enclave certificate: No attestation hash embedded in Subject Alternative Names
+OK                   enclave-cert/750-domain-mismatch  expected=reject js=reject -- Certificate domain mismatch: Certificate is not valid for "evil.example.com"
+OK                   enclave-cert/760-no-san  expected=reject js=reject -- Invalid enclave certificate: No Subject Alternative Names found
+OK                   enclave-cert/770-wildcard-apex-rejected  expected=reject js=reject -- Certificate domain mismatch: Certificate is not valid for "tinfoil.sh"
+OK                   enclave-cert/780-malformed-cert  expected=reject js=reject -- Failed to parse enclave TLS certificate: Invalid character

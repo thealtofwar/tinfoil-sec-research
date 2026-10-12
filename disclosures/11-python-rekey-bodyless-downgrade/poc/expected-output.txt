@@ -1,0 +1,121 @@
+# HOME=<scratch> ./run.sh on 2026-10-11, Python 3.14.4, linux/amd64
+f04e1c0ed98e22619c03e6fc8b9a2cab60a4e9ed2001ffec58ab5cd848d77642  tinfoil-0.14.0-py3-none-any.whl
+e65b09e2526741bce07ae013fcf4e9b28347fad590d7a002a1f5b1254ccdece7  tinfoil_ehbp-0.4.0-py3-none-any.whl
+httpx==0.28.1
+openai==3.29.0
+tinfoil==0.14.0
+tinfoil-ehbp==0.4.0
+##### shipped wheels, expect=vulnerable
+
+=== control  content=bytes
+  peer saw request {'n': 1, 'ehbp_key': True, 'content_length': None, 'body_len': 155, 'canary_visible': False}
+  peer saw request {'n': 2, 'ehbp_key': True, 'content_length': None, 'body_len': 155, 'canary_visible': False}
+  verify() calls: 2; client outcome: raised MissingResponseNonceError: MISSING_RESPONSE_NONCE: missing Ehbp-Response-Nonce header
+  OK: forged 200 not accepted
+
+=== control  OpenAI SDK chat via TinfoilAI
+  peer saw request {'n': 1, 'ehbp_key': True, 'content_length': None, 'body_len': 149, 'canary_visible': False}
+  peer saw request {'n': 2, 'ehbp_key': True, 'content_length': None, 'body_len': 149, 'canary_visible': False}
+  verify() calls: 2; client outcome: raised MissingResponseNonceError: MISSING_RESPONSE_NONCE: missing Ehbp-Response-Nonce header
+  OK: forged 200 not accepted
+
+=== attack   content=open(file,'rb')
+  peer saw request {'n': 1, 'ehbp_key': True, 'content_length': None, 'body_len': 108, 'canary_visible': False}
+  peer saw request {'n': 2, 'ehbp_key': False, 'content_length': '0', 'body_len': 0, 'canary_visible': False}
+  verify() calls: 2; client outcome: status=200 body='{"id": "forged", "object": "chat.completion", "created": 1, "model": "m", "choices": [{"in'
+  VULNERABLE: retry went out unencrypted and bodyless; forged plaintext 200 accepted
+
+=== attack   content=io.BytesIO(...)
+  peer saw request {'n': 1, 'ehbp_key': True, 'content_length': None, 'body_len': 108, 'canary_visible': False}
+  peer saw request {'n': 2, 'ehbp_key': False, 'content_length': '0', 'body_len': 0, 'canary_visible': False}
+  verify() calls: 2; client outcome: status=200 body='{"id": "forged", "object": "chat.completion", "created": 1, "model": "m", "choices": [{"in'
+  VULNERABLE: retry went out unencrypted and bodyless; forged plaintext 200 accepted
+
+=== attack   content=iter([...])
+  peer saw request {'n': 1, 'ehbp_key': True, 'content_length': None, 'body_len': 108, 'canary_visible': False}
+  peer saw request {'n': 2, 'ehbp_key': False, 'content_length': '0', 'body_len': 0, 'canary_visible': False}
+  verify() calls: 2; client outcome: status=200 body='{"id": "forged", "object": "chat.completion", "created": 1, "model": "m", "choices": [{"in'
+  VULNERABLE: retry went out unencrypted and bodyless; forged plaintext 200 accepted
+
+=== attack   async, non-generator async iterable
+  peer saw request {'n': 1, 'ehbp_key': True, 'content_length': None, 'body_len': 108, 'canary_visible': False}
+  peer saw request {'n': 2, 'ehbp_key': False, 'content_length': '0', 'body_len': 0, 'canary_visible': False}
+  verify() calls: 2; client outcome: status=200 body='{"id": "forged", "object": "chat.completion", "created": 1, "model": "m", "choices": [{"in'
+  VULNERABLE: retry went out unencrypted and bodyless; forged plaintext 200 accepted
+
+RESULT: as expected (POC_EXPECT=vulnerable)
+patched /root/tinfoil-review/work/disclosures/11/venv-fixed/lib/python3.14/site-packages/tinfoil/client.py
+##### patched wheels, expect=fixed
+
+=== control  content=bytes
+  peer saw request {'n': 1, 'ehbp_key': True, 'content_length': None, 'body_len': 155, 'canary_visible': False}
+  peer saw request {'n': 2, 'ehbp_key': True, 'content_length': None, 'body_len': 155, 'canary_visible': False}
+  verify() calls: 2; client outcome: raised MissingResponseNonceError: MISSING_RESPONSE_NONCE: missing Ehbp-Response-Nonce header
+  OK: forged 200 not accepted
+
+=== control  OpenAI SDK chat via TinfoilAI
+  peer saw request {'n': 1, 'ehbp_key': True, 'content_length': None, 'body_len': 149, 'canary_visible': False}
+  peer saw request {'n': 2, 'ehbp_key': True, 'content_length': None, 'body_len': 149, 'canary_visible': False}
+  verify() calls: 2; client outcome: raised MissingResponseNonceError: MISSING_RESPONSE_NONCE: missing Ehbp-Response-Nonce header
+  OK: forged 200 not accepted
+
+=== attack   content=open(file,'rb')
+  peer saw request {'n': 1, 'ehbp_key': True, 'content_length': None, 'body_len': 108, 'canary_visible': False}
+  verify() calls: 2; client outcome: raised KeyConfigMismatchError: KEY_CONFIG_MISMATCH: stale key
+  OK: forged 200 not accepted
+
+=== attack   content=io.BytesIO(...)
+  peer saw request {'n': 1, 'ehbp_key': True, 'content_length': None, 'body_len': 108, 'canary_visible': False}
+  verify() calls: 2; client outcome: raised KeyConfigMismatchError: KEY_CONFIG_MISMATCH: stale key
+  OK: forged 200 not accepted
+
+=== attack   content=iter([...])
+  peer saw request {'n': 1, 'ehbp_key': True, 'content_length': None, 'body_len': 108, 'canary_visible': False}
+  verify() calls: 2; client outcome: raised KeyConfigMismatchError: KEY_CONFIG_MISMATCH: stale key
+  OK: forged 200 not accepted
+
+=== attack   async, non-generator async iterable
+  peer saw request {'n': 1, 'ehbp_key': True, 'content_length': None, 'body_len': 108, 'canary_visible': False}
+  verify() calls: 2; client outcome: raised KeyConfigMismatchError: KEY_CONFIG_MISMATCH: stale key
+  OK: forged 200 not accepted
+
+RESULT: as expected (POC_EXPECT=fixed)
+##### tinfoil 0.14.0 + tinfoil-ehbp 0.3.2 (unpatched), expect=fixed
+
+=== control  content=bytes
+  peer saw request {'n': 1, 'ehbp_key': True, 'content_length': None, 'body_len': 155, 'canary_visible': False}
+  peer saw request {'n': 2, 'ehbp_key': True, 'content_length': None, 'body_len': 155, 'canary_visible': False}
+  verify() calls: 2; client outcome: raised ProtocolError: missing Ehbp-Response-Nonce header
+  OK: forged 200 not accepted
+
+=== control  OpenAI SDK chat via TinfoilAI
+  peer saw request {'n': 1, 'ehbp_key': True, 'content_length': None, 'body_len': 149, 'canary_visible': False}
+  peer saw request {'n': 2, 'ehbp_key': True, 'content_length': None, 'body_len': 149, 'canary_visible': False}
+  verify() calls: 2; client outcome: raised ProtocolError: missing Ehbp-Response-Nonce header
+  OK: forged 200 not accepted
+
+=== attack   content=open(file,'rb')
+  peer saw request {'n': 1, 'ehbp_key': True, 'content_length': None, 'body_len': 108, 'canary_visible': False}
+  peer saw request {'n': 2, 'ehbp_key': True, 'content_length': None, 'body_len': 108, 'canary_visible': False}
+  verify() calls: 2; client outcome: raised ProtocolError: missing Ehbp-Response-Nonce header
+  OK: forged 200 not accepted
+
+=== attack   content=io.BytesIO(...)
+  peer saw request {'n': 1, 'ehbp_key': True, 'content_length': None, 'body_len': 108, 'canary_visible': False}
+  peer saw request {'n': 2, 'ehbp_key': True, 'content_length': None, 'body_len': 108, 'canary_visible': False}
+  verify() calls: 2; client outcome: raised ProtocolError: missing Ehbp-Response-Nonce header
+  OK: forged 200 not accepted
+
+=== attack   content=iter([...])
+  peer saw request {'n': 1, 'ehbp_key': True, 'content_length': None, 'body_len': 108, 'canary_visible': False}
+  peer saw request {'n': 2, 'ehbp_key': True, 'content_length': None, 'body_len': 108, 'canary_visible': False}
+  verify() calls: 2; client outcome: raised ProtocolError: missing Ehbp-Response-Nonce header
+  OK: forged 200 not accepted
+
+=== attack   async, non-generator async iterable
+  peer saw request {'n': 1, 'ehbp_key': True, 'content_length': None, 'body_len': 108, 'canary_visible': False}
+  peer saw request {'n': 2, 'ehbp_key': True, 'content_length': None, 'body_len': 108, 'canary_visible': False}
+  verify() calls: 2; client outcome: raised ProtocolError: missing Ehbp-Response-Nonce header
+  OK: forged 200 not accepted
+
+RESULT: as expected (POC_EXPECT=fixed)

@@ -1,0 +1,2 @@
+launch: started /api-server pid=111951 in /root/.claude/jobs/632f70ea/tmp/work/verify3-L2-cee-snapshot-auth-bypass-poc/rootfs (uid=1000 gid=1000 ambient=[])
+2026/10/07 18:42:33 api server listening on :8000

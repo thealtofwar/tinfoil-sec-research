@@ -1,0 +1,8 @@
+A. no SET, proof without checkpoint, logId = Rekor v2 log2025-1 id             -> ACCEPTED
+B. no SET, proof WITH checkpoint but checkpoint.envelope = "" (empty)          -> rejected: Missing checkpoint separator
+C. no SET, proof with checkpoint = {} (no envelope)                            -> rejected: Cannot read properties of undefined (reading 'includes')
+D. no SET, proof without checkpoint, logIndex/treeSize huge                    -> rejected: Invalid hash count in inclusion proof
+E. no SET, no checkpoint, canonicalizedBody rewritten (kind dsse, sig+payloadHash consistent) -> rejected: The string to be decoded is not correctly encoded.
+F. two entries, both unsigned (different logIndex)                             -> ACCEPTED
+G. mediaType bogus (-> treated as v0.1), SET removed, proof present no checkpoint -> ACCEPTED
+H. timestampVerificationData removed entirely, no SET, no checkpoint           -> ACCEPTED

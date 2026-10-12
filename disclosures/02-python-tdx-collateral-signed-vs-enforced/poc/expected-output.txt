@@ -1,0 +1,23 @@
+Name: tinfoil
+Version: 0.14.0
+tinfoil  /root/tinfoil-review/work/disclosures/02/venv/lib/python3.14/site-packages/tinfoil/__init__.py
+real quote verified (PCK chain, quote and QE report signatures) against the pinned Intel root; QE MRSIGNER = dc9e2a7c6f948f17...
+
+-- validate_collateral() on the real quote
+[1] genuine Intel TCB Info + QE Identity                       -> REJECT  No matching TCB level found for the quote's SVN values
+[2] dup-key tcbInfo forgery                                    -> ACCEPT  TCB status=UpToDate
+[3] nested tcbInfo forgery                                     -> ACCEPT  TCB status=UpToDate
+[4a] [2] + dup-key enclaveIdentity, mrsigner=4141..            -> REJECT(forged mrsigner enforced)  QE report MRSIGNER does not match expected value. Got dc9e2a7c6f948f17474e34a7fc43ed030f7c1563f1babddf6340c82e0e54a8c5, expected 4141..(unsigned value)
+[4b] [3] + nested enclaveIdentity, mrsigner=4141..             -> REJECT(forged mrsigner enforced)  QE report MRSIGNER does not match expected value. Got dc9e2a7c6f948f17474e34a7fc43ed030f7c1563f1babddf6340c82e0e54a8c5, expected 4141..(unsigned value)
+     (4a/4b: the MRSIGNER check compares the real QE against the forged, unsigned value)
+
+-- same, with a duplicate-rejecting json.loads patched in (the 'obvious' fix)
+[5a] dup-key tcbInfo forgery, strict parser                    -> REJECT  duplicate JSON member rejected: ['tcbInfo', 'signature', 'tcbInfo']
+[5b] nested tcbInfo forgery, strict parser                     -> ACCEPT  TCB status=UpToDate
+
+-- public entry point Document(TDX_GUEST_V2).verify(), shipped evaluation-number floor 19
+[6a] nested forgery of both objects                            -> ACCEPT  tls_fp=6c62dec1b8191749..
+[6b] next session, no network (poisoned cache)                 -> ACCEPT  tls_fp=6c62dec1b8191749..
+
+RESULT: {'1 genuine': 'REJECT', '2 dupkey': 'ACCEPT', '3 nested': 'ACCEPT', '4a qe-dupkey': 'REJECT(forged mrsigner enforced)', '4b qe-nested': 'REJECT(forged mrsigner enforced)', '5a strict dupkey': 'REJECT', '5b strict nested': 'ACCEPT', '[6a]': 'ACCEPT', '[6b]': 'ACCEPT'}
+matches expected: True

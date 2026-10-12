@@ -1,0 +1,55 @@
+== PoC 1: go-tdx-guest v0.3.1 library level, real Intel quote + real Intel collateral, current clock
+=== RUN   TestControl_ExactDuplicateKeyIsRejectedInGo
+    dupkey_control_test.go:25: exact duplicate tcbInfo (genuine first, forged last): err=tcbInfo response verification failed: could not verify response body using the signing certificate: x509: ECDSA verification failure
+--- PASS: TestControl_ExactDuplicateKeyIsRejectedInGo (0.00s)
+=== RUN   TestControl_GenuineCollateral
+    poc_test.go:129: genuine Intel collateral, current clock: err=TDX TCB info reported by Intel PCS failed TCB status check: no matching TCB level found
+--- PASS: TestControl_GenuineCollateral (0.00s)
+=== RUN   TestForged_TcbInfoCaseVariant
+    poc_test.go:170: forged (unsigned, case-variant) tcbinfo/enclaveidentity: err=<nil>
+--- PASS: TestForged_TcbInfoCaseVariant (0.00s)
+=== RUN   TestForged_QeMrsignerIsEnforcedFromUnsignedMember
+    poc_test.go:200: unsigned enclaveidentity.mrsigner=abab..: err=MRSIGNER value("dc9e2a7c6f948f17474e34a7fc43ed030f7c1563f1babddf6340c82e0e54a8c5") in QE Report is not equal to MRSIGNER value({"\xab\xab\xab\xab\xab\xab\xab\xab\xab\xab\xab\xab\xab\xab\xab\xab\xab\xab\xab\xab\xab\xab\xab\xab\xab\xab\xab\xab\xab\xab\xab\xab"}) in Intel PCS's reported QE Identity
+--- PASS: TestForged_QeMrsignerIsEnforcedFromUnsignedMember (0.00s)
+PASS
+ok  	poc1	0.020s
+== PoC 2: tinfoil-go HEAD (ef79d8e), PRODUCTION build (no tags), verify/internal/quote/tdx.Authenticate
+=== RUN   TestPoC_Control_GenuineIntelCollateralRejectsStalePlatform
+    poc_casefold_test.go:107: genuine collateral: attestation error: verifying TDX quote: TDX TCB info reported by Intel PCS failed TCB status check: no matching TCB level found
+--- PASS: TestPoC_Control_GenuineIntelCollateralRejectsStalePlatform (0.00s)
+=== RUN   TestPoC_UnsignedCaseVariantMembersAreEnforced
+    poc_casefold_test.go:136: ACCEPTED: identity(PPID)=089ddfdb9c0359c82a3bc7719239574e tcbEvaluationDataNumber(recorded from signed member)=20
+    poc_casefold_test.go:137: enclave measurement: https://tinfoil.sh/predicate/tdx-guest/v2
+        MRTD  6363b8043668a3ad953278e10389574d326c6749fb78aa810ecd9336923db86f22fc00b8dcd404bc10d5e119d7215cbb
+        RTMR0 2927da70461cd63266f43230cc1849c03ef25ebe490062a801d8fcc80af42976823adf08f833c1e50b51779c6593f32a
+        RTMR1 2c700b8ba9b85783f8be9fb9443647bdc0bb3c50747f06297cc6538c25a5f589c4b56d035c59107c6bc5800db2cacb61
+        RTMR2 8652f0caaba7e215ea442dc36a4499d8fec3362f3a0b2ca151cbe4b3e6466fe59c7368b3c2287fc7c3bf5c924eb4424e
+        RTMR3 000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+--- PASS: TestPoC_UnsignedCaseVariantMembersAreEnforced (0.00s)
+=== RUN   TestPoC_QeMrsignerComesFromUnsignedMember
+    poc_casefold_test.go:159: unsigned enclaveidentity.mrsigner=abab...: attestation error: verifying TDX quote: MRSIGNER value("dc9e2a7c6f948f17474e34a7fc43ed030f7c1563f1babddf6340c82e0e54a8c5") in QE Report is not equal to MRSIGNER value({"\xab\xab\xab\xab\xab\xab\xab\xab\xab\xab\xab\xab\xab\xab\xab\xab\xab\xab\xab\xab\xab\xab\xab\xab\xab\xab\xab\xab\xab\xab\xab\xab"}) in Intel PCS's reported QE Identity
+--- PASS: TestPoC_QeMrsignerComesFromUnsignedMember (0.00s)
+PASS
+ok  	github.com/tinfoilsh/tinfoil-go/verify/internal/quote/tdx	0.018s
+== PoC 2b: tinfoil-go v0.16.1 (pinned by tinfoil-proxy), production build
+=== RUN   TestPoC_v0161_Control
+    poc_casefold_test.go:102: genuine collateral: attestation error: verifying TDX quote: TDX TCB info reported by Intel PCS failed TCB status check: no matching TCB level found
+--- PASS: TestPoC_v0161_Control (0.00s)
+=== RUN   TestPoC_v0161_UnsignedCaseVariantAccepted
+    poc_casefold_test.go:109: ACCEPTED by tinfoil-go v0.16.1: identity=089ddfdb9c0359c82a3bc7719239574e
+--- PASS: TestPoC_v0161_UnsignedCaseVariantAccepted (0.01s)
+PASS
+ok  	github.com/tinfoilsh/tinfoil-go/verifier/internal/quote/tdx	0.014s
+== PoC 3: full Verifier.VerifyV3 (conformance adapter = VerifyV3WithLayer) on a fake-QE document
+-- fakeqe-control
+{
+  "stage": "verify-attestation-v3",
+  "accepted": false,
+  "rejection": {
+exit=0
+-- fakeqe-casefold-derived
+{
+  "stage": "verify-attestation-v3",
+  "accepted": true,
+  "outputs": {
+exit=0

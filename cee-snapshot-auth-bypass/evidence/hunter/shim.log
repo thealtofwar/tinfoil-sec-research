@@ -1,0 +1,7 @@
+time="2026-10-07T05:34:52Z" level=info msg="Starting tinfoil attestation shim dev: &{ListenPort:18443 UpstreamPort:8000 ControlPort:8086 Paths:[/exec /read /write /snapshot /restore /sync-uploads/manifest /sync-uploads/blobs /health] OriginDomains:[] TLSMode:self-signed TLSEnv:production TLSChallengeMode:dns TLSWildcard:false TLSOwnSANDomain:false ControlPlane:https://api.tinfoil.sh Authenticated:false AuthenticatedEndpoints:<nil> RateLimit:0 RateBurst:0 CacheDir:/root/.claude/jobs/632f70ea/tmp/work/hunt-enclave-services-b/poc-cee-snapshot/shim/cache Email:tls@tinfoil.sh HPKEKeyFile:/root/.claude/jobs/632f70ea/tmp/work/hunt-enclave-services-b/poc-cee-snapshot/shim/hpke_key.json PublishAttestation:true PublishFullAttestation:false DummyAttestation:false Verbose:false}"
+time="2026-10-07T05:34:52Z" level=warning msg="API key verification disabled (unauthenticated endpoint)"
+time="2026-10-07T05:34:52Z" level=info msg="Attested keys" hpke_key=6c78486e8c4d35b6809b81f914fbf1251f010dab47a96b6a126c12650d5a3809 tls_key_fp=9726b99278a91907c0e92653466764693cdd3670f470b397dc7b27d1b83d1887
+time="2026-10-07T05:34:52Z" level=info msg="Fetching attestation over 9726b99278a91907c0e92653466764693cdd3670f470b397dc7b27d1b83d18876c78486e8c4d35b6809b81f914fbf1251f010dab47a96b6a126c12650d5a3809"
+time="2026-10-07T05:34:52Z" level=warning msg="Using dummy attestation report"
+time="2026-10-07T05:34:52Z" level=warning msg="Publishing attestation document hash"
+time="2026-10-07T05:34:52Z" level=info msg="Listening on :18443"

@@ -1,0 +1,14 @@
+
+ RUN  v4.1.10 /root/tinfoil-review/work/webapp-sandbox-bridge/tinfoil-webapp
+
+ ✓ tests/poc/url-prefill-autosubmit.test.tsx > cross-site prompt injection through the URL > ?q= is submitted as the user without any interaction 12ms
+ ✓ tests/poc/url-prefill-autosubmit.test.tsx > cross-site prompt injection through the URL > #send= (base64, never sent to any server) is submitted the same way 3ms
+ ✓ tests/poc/url-prefill-autosubmit.test.tsx > cross-site prompt injection through the URL > also fires on a project route, where project documents and memory are in context 2ms
+ ✓ tests/poc/model-output-remote-image.test.tsx > model output reaches arbitrary https hosts from the chat origin > markdown image in an assistant message renders as <img src=https://attacker...> 54ms
+ ✓ tests/poc/model-output-remote-image.test.tsx > model output reaches arbitrary https hosts from the chat origin > render_image GenUI widget renders the model-supplied URL as <img src> 5ms
+
+ Test Files  2 passed (2)
+      Tests  5 passed (5)
+   Start at  01:13:54
+   Duration  2.44s (transform 489ms, setup 108ms, import 1.91s, tests 79ms, environment 638ms)
+

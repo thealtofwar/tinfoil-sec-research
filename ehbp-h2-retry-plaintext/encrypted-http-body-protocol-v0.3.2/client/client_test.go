@@ -1,0 +1,917 @@
+package client
+
+import (
+	"bytes"
+	"fmt"
+	"io"
+	"net/http"
+	"net/http/httptest"
+	"net/http/httputil"
+	"net/url"
+	"strconv"
+	"strings"
+	"sync"
+	"testing"
+	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/tinfoilsh/encrypted-http-body-protocol/identity"
+	"github.com/tinfoilsh/encrypted-http-body-protocol/protocol"
+)
+
+func TestSecureClient(t *testing.T) {
+	serverIdentity, err := identity.NewIdentity()
+	assert.NoError(t, err)
+
+	middleware := serverIdentity.Middleware()
+
+	mux := http.NewServeMux()
+	mux.HandleFunc(protocol.KeysPath, serverIdentity.ConfigHandler)
+
+	mux.Handle("/secure", middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			http.Error(w, "Failed to read request body", http.StatusInternalServerError)
+			return
+		}
+
+		if _, err := w.Write([]byte("Hello, " + string(body))); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+	})))
+
+	mux.Handle("/stream", middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/plain")
+		w.Header().Set("Transfer-Encoding", "chunked")
+
+		flusher, ok := w.(http.Flusher)
+		if !ok {
+			http.Error(w, "Streaming not supported", http.StatusInternalServerError)
+			return
+		}
+
+		for i := 1; i <= 10; i++ {
+			_, err := fmt.Fprintf(w, "Number: %d\n", i)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			flusher.Flush()
+			time.Sleep(100 * time.Millisecond)
+		}
+	})))
+
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	secureTransport, err := NewTransport(server.URL)
+	assert.NoError(t, err)
+	httpClient := &http.Client{
+		Transport: secureTransport,
+	}
+
+	t.Run("secure endpoint", func(t *testing.T) {
+		req, err := http.NewRequest("POST", server.URL+"/secure", bytes.NewBuffer([]byte("test")))
+		assert.NoError(t, err)
+
+		resp, err := httpClient.Do(req)
+		assert.NoError(t, err)
+		defer resp.Body.Close()
+
+		body, err := io.ReadAll(resp.Body)
+		assert.NoError(t, err)
+		assert.Equal(t, "Hello, test", string(body))
+	})
+
+	t.Run("streaming endpoint", func(t *testing.T) {
+		req, err := http.NewRequest("GET", server.URL+"/stream", nil)
+		assert.NoError(t, err)
+
+		resp, err := httpClient.Do(req)
+		assert.NoError(t, err)
+		defer resp.Body.Close()
+
+		var completeResponse strings.Builder
+		buf := make([]byte, 1024)
+		for {
+			n, err := resp.Body.Read(buf)
+			if n > 0 {
+				completeResponse.WriteString(string(buf[:n]))
+			}
+
+			if err == io.EOF {
+				break
+			}
+
+			if err != nil {
+				assert.NoError(t, err)
+				break
+			}
+		}
+
+		assert.Equal(t, "Number: 1\nNumber: 2\nNumber: 3\nNumber: 4\nNumber: 5\nNumber: 6\nNumber: 7\nNumber: 8\nNumber: 9\nNumber: 10\n", completeResponse.String())
+	})
+}
+
+func TestNewTransportWithIdentity(t *testing.T) {
+	serverIdentity, err := identity.NewIdentity()
+	assert.NoError(t, err)
+
+	middleware := serverIdentity.Middleware()
+	mux := http.NewServeMux()
+	mux.Handle("/secure", middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			http.Error(w, "Failed to read request body", http.StatusInternalServerError)
+			return
+		}
+		_, _ = w.Write([]byte("Hello, " + string(body)))
+	})))
+
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	// Build a public-only identity from the server's attested public key, with
+	// no network fetch of the key configuration.
+	pubIdentity, err := identity.FromPublicKeyHex(serverIdentity.MarshalPublicKeyHex())
+	assert.NoError(t, err)
+
+	transport, err := NewTransportWithIdentity(pubIdentity)
+	assert.NoError(t, err)
+
+	httpClient := &http.Client{Transport: transport}
+	req, err := http.NewRequest("POST", server.URL+"/secure", bytes.NewBuffer([]byte("test")))
+	assert.NoError(t, err)
+
+	resp, err := httpClient.Do(req)
+	assert.NoError(t, err)
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	assert.NoError(t, err)
+	assert.Equal(t, "Hello, test", string(body))
+}
+
+func TestNewTransportWithIdentityRequiresIdentity(t *testing.T) {
+	_, err := NewTransportWithIdentity(nil)
+	assert.Error(t, err)
+}
+
+// A RoundTripper must perform a single HTTP transaction: redirects have to
+// surface to the outer http.Client so its CheckRedirect policy and cookie jar
+// apply, instead of being swallowed by an internal client.
+func TestRoundTripSurfacesRedirectsToOuterClient(t *testing.T) {
+	serverIdentity, err := identity.NewIdentity()
+	assert.NoError(t, err)
+
+	middleware := serverIdentity.Middleware()
+	mux := http.NewServeMux()
+	mux.Handle("/redirect", middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = io.ReadAll(r.Body)
+		http.Redirect(w, r, "/secure", http.StatusTemporaryRedirect)
+	})))
+	mux.Handle("/secure", middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			http.Error(w, "Failed to read request body", http.StatusInternalServerError)
+			return
+		}
+		_, _ = w.Write([]byte("Hello, " + string(body)))
+	})))
+
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	pubIdentity, err := identity.FromPublicKeyHex(serverIdentity.MarshalPublicKeyHex())
+	assert.NoError(t, err)
+	transport, err := NewTransportWithIdentity(pubIdentity)
+	assert.NoError(t, err)
+
+	t.Run("RoundTrip returns the redirect unfollowed", func(t *testing.T) {
+		req, err := http.NewRequest("POST", server.URL+"/redirect", bytes.NewBufferString("test"))
+		assert.NoError(t, err)
+
+		resp, err := transport.RoundTrip(req)
+		assert.NoError(t, err)
+		defer resp.Body.Close()
+
+		assert.Equal(t, http.StatusTemporaryRedirect, resp.StatusCode)
+		assert.Equal(t, "/secure", resp.Header.Get("Location"))
+	})
+
+	t.Run("outer client follows and re-encrypts each hop", func(t *testing.T) {
+		redirectsSeen := 0
+		httpClient := &http.Client{
+			Transport: transport,
+			CheckRedirect: func(req *http.Request, via []*http.Request) error {
+				redirectsSeen++
+				return nil
+			},
+		}
+
+		req, err := http.NewRequest("POST", server.URL+"/redirect", bytes.NewBufferString("test"))
+		assert.NoError(t, err)
+
+		resp, err := httpClient.Do(req)
+		assert.NoError(t, err)
+		defer resp.Body.Close()
+
+		body, err := io.ReadAll(resp.Body)
+		assert.NoError(t, err)
+		assert.Equal(t, "Hello, test", string(body))
+		assert.Equal(t, 1, redirectsSeen)
+	})
+}
+
+// TestTransportClearsRequestURI ensures the transport can carry a request that
+// originated as an inbound server request, which is how httputil.ReverseProxy
+// drives a RoundTripper. Such requests have RequestURI populated, and
+// http.Client.Do rejects that; the transport must clear it before sending.
+func TestTransportClearsRequestURI(t *testing.T) {
+	serverIdentity, err := identity.NewIdentity()
+	assert.NoError(t, err)
+
+	middleware := serverIdentity.Middleware()
+	mux := http.NewServeMux()
+	mux.Handle("/secure", middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, _ := io.ReadAll(r.Body)
+		_, _ = w.Write([]byte("Hello, " + string(body)))
+	})))
+
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	pubIdentity, err := identity.FromPublicKeyHex(serverIdentity.MarshalPublicKeyHex())
+	assert.NoError(t, err)
+
+	transport, err := NewTransportWithIdentity(pubIdentity)
+	assert.NoError(t, err)
+
+	req, err := http.NewRequest("POST", server.URL+"/secure", bytes.NewBuffer([]byte("test")))
+	assert.NoError(t, err)
+	// Populated by the http server on inbound requests and preserved by
+	// req.Clone; forwarding it unchanged would make http.Client.Do fail.
+	req.RequestURI = "/secure"
+
+	// Call RoundTrip directly, mirroring how a reverse proxy invokes the
+	// transport (http.Client.Do would reject RequestURI before the transport).
+	resp, err := transport.RoundTrip(req)
+	if !assert.NoError(t, err) {
+		t.FailNow()
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	assert.NoError(t, err)
+	assert.Equal(t, "Hello, test", string(body))
+}
+
+// TestTransportBehindReverseProxyNonStreaming forwards a non-streaming reply
+// through httputil.ReverseProxy when the encrypted upstream response carries a
+// Content-Length header, as buffering middleboxes add when they re-frame the
+// server's chunked reply. That header describes the encrypted body; if the
+// transport leaves it on the decrypted response, the reverse proxy announces
+// more bytes than it writes and the downstream client sees a truncated reply.
+func TestTransportBehindReverseProxyNonStreaming(t *testing.T) {
+	serverIdentity, err := identity.NewIdentity()
+	assert.NoError(t, err)
+
+	const reply = "Hello from the enclave, this reply must arrive intact"
+
+	middleware := serverIdentity.Middleware()
+	mux := http.NewServeMux()
+	mux.HandleFunc(protocol.KeysPath, serverIdentity.ConfigHandler)
+	mux.Handle("/secure", middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = io.ReadAll(r.Body)
+		_, _ = w.Write([]byte(reply))
+	})))
+	backend := httptest.NewServer(mux)
+	defer backend.Close()
+
+	// Buffers each upstream response and re-frames it with an explicit
+	// Content-Length matching the encrypted body.
+	buffering := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		req, err := http.NewRequest(r.Method, backend.URL+r.URL.Path, r.Body)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		req.Header = r.Header.Clone()
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadGateway)
+			return
+		}
+		defer resp.Body.Close()
+		encryptedBody, err := io.ReadAll(resp.Body)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadGateway)
+			return
+		}
+		for key, values := range resp.Header {
+			for _, value := range values {
+				w.Header().Add(key, value)
+			}
+		}
+		w.Header().Set("Content-Length", strconv.Itoa(len(encryptedBody)))
+		w.WriteHeader(resp.StatusCode)
+		_, _ = w.Write(encryptedBody)
+	}))
+	defer buffering.Close()
+
+	transport, err := NewTransport(buffering.URL)
+	assert.NoError(t, err)
+
+	t.Run("decrypted response drops encrypted framing", func(t *testing.T) {
+		req, err := http.NewRequest("POST", buffering.URL+"/secure", bytes.NewBufferString("test"))
+		assert.NoError(t, err)
+
+		resp, err := transport.RoundTrip(req)
+		if !assert.NoError(t, err) {
+			t.FailNow()
+		}
+		defer resp.Body.Close()
+
+		assert.Empty(t, resp.Header.Get("Content-Length"))
+		assert.Equal(t, int64(-1), resp.ContentLength)
+
+		body, err := io.ReadAll(resp.Body)
+		assert.NoError(t, err)
+		assert.Equal(t, reply, string(body))
+	})
+
+	t.Run("full reply reaches the reverse proxy client", func(t *testing.T) {
+		target, err := url.Parse(buffering.URL)
+		assert.NoError(t, err)
+		reverseProxy := httputil.NewSingleHostReverseProxy(target)
+		reverseProxy.Transport = transport
+		proxyServer := httptest.NewServer(reverseProxy)
+		defer proxyServer.Close()
+
+		resp, err := http.Post(proxyServer.URL+"/secure", "text/plain", bytes.NewBufferString("test"))
+		if !assert.NoError(t, err) {
+			t.FailNow()
+		}
+		defer resp.Body.Close()
+
+		body, err := io.ReadAll(resp.Body)
+		assert.NoError(t, err)
+		assert.Equal(t, reply, string(body))
+	})
+}
+
+type recordingRoundTripper struct {
+	inner http.RoundTripper
+	count int
+}
+
+func (r *recordingRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
+	r.count++
+	return r.inner.RoundTrip(req)
+}
+
+type corruptingRoundTripper struct {
+	inner http.RoundTripper
+}
+
+func (r corruptingRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
+	resp, err := r.inner.RoundTrip(req)
+	if err != nil {
+		return nil, err
+	}
+	if resp.Header.Get(protocol.ResponseNonceHeader) == "" {
+		return resp, nil
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		resp.Body.Close()
+		return nil, err
+	}
+	resp.Body.Close()
+	body[len(body)-1] ^= 1
+	resp.Body = io.NopCloser(bytes.NewReader(body))
+	return resp, nil
+}
+
+type firstResponseCorruptingRoundTripper struct {
+	inner http.RoundTripper
+	mu    sync.Mutex
+	count int
+}
+
+func (r *firstResponseCorruptingRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
+	resp, err := r.inner.RoundTrip(req)
+	if err != nil {
+		return nil, err
+	}
+	if resp.Header.Get(protocol.ResponseNonceHeader) == "" {
+		return resp, nil
+	}
+
+	r.mu.Lock()
+	r.count++
+	shouldCorrupt := r.count == 1
+	r.mu.Unlock()
+	if !shouldCorrupt {
+		return resp, nil
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		resp.Body.Close()
+		return nil, err
+	}
+	resp.Body.Close()
+	body[len(body)-1] ^= 1
+	resp.Body = io.NopCloser(bytes.NewReader(body))
+	return resp, nil
+}
+
+func TestWithHTTPClient(t *testing.T) {
+	serverIdentity, err := identity.NewIdentity()
+	assert.NoError(t, err)
+
+	middleware := serverIdentity.Middleware()
+	mux := http.NewServeMux()
+	mux.Handle("/secure", middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, _ := io.ReadAll(r.Body)
+		_, _ = w.Write([]byte("Hello, " + string(body)))
+	})))
+
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	pubIdentity, err := identity.FromPublicKeyHex(serverIdentity.MarshalPublicKeyHex())
+	assert.NoError(t, err)
+
+	rec := &recordingRoundTripper{inner: http.DefaultTransport}
+	transport, err := NewTransportWithIdentity(pubIdentity, WithHTTPClient(&http.Client{Transport: rec}))
+	assert.NoError(t, err)
+
+	httpClient := &http.Client{Transport: transport}
+	req, err := http.NewRequest("POST", server.URL+"/secure", bytes.NewBuffer([]byte("test")))
+	assert.NoError(t, err)
+
+	resp, err := httpClient.Do(req)
+	assert.NoError(t, err)
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	assert.NoError(t, err)
+	assert.Equal(t, "Hello, test", string(body))
+	assert.GreaterOrEqual(t, rec.count, 1, "injected http client must be used to send encrypted requests")
+}
+
+func TestWithHTTPClientIgnoresNil(t *testing.T) {
+	serverIdentity, err := identity.NewIdentity()
+	assert.NoError(t, err)
+
+	pubIdentity, err := identity.FromPublicKeyHex(serverIdentity.MarshalPublicKeyHex())
+	assert.NoError(t, err)
+
+	// A nil client must not null out the default, which would panic on use.
+	transport, err := NewTransportWithIdentity(pubIdentity, WithHTTPClient(nil))
+	assert.NoError(t, err)
+	assert.NotNil(t, transport.httpClient)
+}
+
+func TestTransportReturnsErrorOnKeyConfigMismatch(t *testing.T) {
+	identityA, err := identity.NewIdentity()
+	assert.NoError(t, err)
+	identityB, err := identity.NewIdentity()
+	assert.NoError(t, err)
+
+	var (
+		mu     sync.RWMutex
+		active = identityA
+	)
+
+	secureHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			http.Error(w, "Failed to read request body", http.StatusInternalServerError)
+			return
+		}
+		_, _ = w.Write([]byte("Hello, " + string(body)))
+	})
+
+	mux := http.NewServeMux()
+	mux.HandleFunc(protocol.KeysPath, func(w http.ResponseWriter, r *http.Request) {
+		mu.RLock()
+		current := active
+		mu.RUnlock()
+		current.ConfigHandler(w, r)
+	})
+	mux.Handle("/secure", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.RLock()
+		current := active
+		mu.RUnlock()
+		current.Middleware()(secureHandler).ServeHTTP(w, r)
+	}))
+
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	transport, err := NewTransport(server.URL)
+	assert.NoError(t, err)
+
+	// Rotate key after client initialization to force a stale-key attempt.
+	mu.Lock()
+	active = identityB
+	mu.Unlock()
+
+	httpClient := &http.Client{Transport: transport}
+	req, err := http.NewRequest("POST", server.URL+"/secure", bytes.NewBuffer([]byte("test")))
+	assert.NoError(t, err)
+
+	_, err = httpClient.Do(req)
+	assert.Error(t, err)
+	assert.True(t, identity.IsKeyConfigError(err))
+}
+
+func TestTransportPassesThroughNonceLessErrorResponse(t *testing.T) {
+	serverIdentity, err := identity.NewIdentity()
+	assert.NoError(t, err)
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("X-Upstream-Error", "rate-limited")
+		w.WriteHeader(http.StatusTooManyRequests)
+		_, _ = w.Write([]byte(`{"error":"try again later"}`))
+	}))
+	defer server.Close()
+
+	pubIdentity, err := identity.FromPublicKeyHex(serverIdentity.MarshalPublicKeyHex())
+	assert.NoError(t, err)
+
+	transport, err := NewTransportWithIdentity(pubIdentity)
+	assert.NoError(t, err)
+
+	req, err := http.NewRequest("POST", server.URL, bytes.NewBufferString("secret"))
+	assert.NoError(t, err)
+
+	resp, err := transport.RoundTrip(req)
+	if !assert.NoError(t, err) {
+		t.FailNow()
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	assert.NoError(t, err)
+	assert.Equal(t, http.StatusTooManyRequests, resp.StatusCode)
+	assert.Equal(t, "application/json", resp.Header.Get("Content-Type"))
+	assert.Equal(t, "rate-limited", resp.Header.Get("X-Upstream-Error"))
+	assert.Equal(t, `{"error":"try again later"}`, string(body))
+	assert.Nil(t, transport.GetSessionRecoveryToken())
+}
+
+func TestTransportRejectsNonceLessSuccessResponse(t *testing.T) {
+	serverIdentity, err := identity.NewIdentity()
+	assert.NoError(t, err)
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("plaintext"))
+	}))
+	defer server.Close()
+
+	pubIdentity, err := identity.FromPublicKeyHex(serverIdentity.MarshalPublicKeyHex())
+	assert.NoError(t, err)
+
+	transport, err := NewTransportWithIdentity(pubIdentity)
+	assert.NoError(t, err)
+
+	req, err := http.NewRequest("POST", server.URL, bytes.NewBufferString("secret"))
+	assert.NoError(t, err)
+
+	resp, err := transport.RoundTrip(req)
+	assert.Nil(t, resp)
+	assert.ErrorContains(t, err, protocol.ResponseNonceHeader)
+	assert.Nil(t, transport.GetSessionRecoveryToken())
+}
+
+func TestTransportGetSessionRecoveryToken(t *testing.T) {
+	serverIdentity, err := identity.NewIdentity()
+	assert.NoError(t, err)
+
+	middleware := serverIdentity.Middleware()
+
+	mux := http.NewServeMux()
+	mux.HandleFunc(protocol.KeysPath, serverIdentity.ConfigHandler)
+
+	mux.Handle("/secure", middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			http.Error(w, "Failed to read request body", http.StatusInternalServerError)
+			return
+		}
+		w.Write([]byte("Hello, " + string(body)))
+	})))
+
+	mux.Handle("/plain", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte("plaintext"))
+	}))
+
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	transport, err := NewTransport(server.URL)
+	assert.NoError(t, err)
+	httpClient := &http.Client{Transport: transport}
+
+	t.Run("nil before any request", func(t *testing.T) {
+		token := transport.GetSessionRecoveryToken()
+		assert.Nil(t, token)
+	})
+
+	t.Run("cleared after successful full response consumption", func(t *testing.T) {
+		req, err := http.NewRequest("POST", server.URL+"/secure", bytes.NewBuffer([]byte("test")))
+		assert.NoError(t, err)
+
+		resp, err := httpClient.Do(req)
+		assert.NoError(t, err)
+		defer resp.Body.Close()
+
+		token := transport.GetSessionRecoveryToken()
+		assert.NotNil(t, token)
+		assert.Len(t, token.ExportedSecret, 32)
+		assert.Len(t, token.RequestEnc, 32)
+
+		_, err = io.ReadAll(resp.Body)
+		assert.NoError(t, err)
+		assert.Nil(t, transport.GetSessionRecoveryToken())
+	})
+
+	t.Run("retained after response body is closed before EOF", func(t *testing.T) {
+		req, err := http.NewRequest("POST", server.URL+"/secure", bytes.NewBuffer([]byte("test")))
+		assert.NoError(t, err)
+
+		resp, err := httpClient.Do(req)
+		assert.NoError(t, err)
+		assert.NoError(t, resp.Body.Close())
+
+		assert.NotNil(t, transport.GetSessionRecoveryToken())
+	})
+
+	t.Run("updates on each new request", func(t *testing.T) {
+		req1, _ := http.NewRequest("POST", server.URL+"/secure", bytes.NewBuffer([]byte("req1")))
+		resp1, err := httpClient.Do(req1)
+		assert.NoError(t, err)
+		resp1.Body.Close()
+		token1 := transport.GetSessionRecoveryToken()
+
+		req2, _ := http.NewRequest("POST", server.URL+"/secure", bytes.NewBuffer([]byte("req2")))
+		resp2, err := httpClient.Do(req2)
+		assert.NoError(t, err)
+		resp2.Body.Close()
+		token2 := transport.GetSessionRecoveryToken()
+
+		assert.NotEqual(t, token1.ExportedSecret, token2.ExportedSecret,
+			"Tokens from different requests must have different exported secrets")
+	})
+
+	t.Run("cleared for bodyless requests", func(t *testing.T) {
+		// First make a POST to set a token
+		req1, _ := http.NewRequest("POST", server.URL+"/secure", bytes.NewBuffer([]byte("body")))
+		resp1, err := httpClient.Do(req1)
+		assert.NoError(t, err)
+		resp1.Body.Close()
+		assert.NotNil(t, transport.GetSessionRecoveryToken())
+
+		// GET without body should clear the token
+		req2, _ := http.NewRequest("GET", server.URL+"/plain", nil)
+		resp2, err := httpClient.Do(req2)
+		assert.NoError(t, err)
+		resp2.Body.Close()
+
+		assert.Nil(t, transport.GetSessionRecoveryToken(),
+			"Token should be cleared after bodyless request")
+	})
+}
+
+func TestTransportLatestRequestOwnsRecoveryToken(t *testing.T) {
+	serverIdentity, err := identity.NewIdentity()
+	assert.NoError(t, err)
+
+	firstStarted := make(chan struct{})
+	releaseFirst := make(chan struct{})
+	server := httptest.NewServer(serverIdentity.Middleware()(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, readErr := io.ReadAll(r.Body)
+		assert.NoError(t, readErr)
+		if string(body) == "first" {
+			close(firstStarted)
+			<-releaseFirst
+		}
+		_, _ = w.Write([]byte("ok"))
+	})))
+	defer server.Close()
+
+	pubIdentity, err := identity.FromPublicKeyHex(serverIdentity.MarshalPublicKeyHex())
+	assert.NoError(t, err)
+	transport, err := NewTransportWithIdentity(pubIdentity)
+	assert.NoError(t, err)
+	httpClient := &http.Client{Transport: transport}
+
+	firstResult := make(chan error, 1)
+	go func() {
+		req, reqErr := http.NewRequest("POST", server.URL, bytes.NewBufferString("first"))
+		if reqErr != nil {
+			firstResult <- reqErr
+			return
+		}
+		resp, doErr := httpClient.Do(req)
+		if doErr == nil {
+			resp.Body.Close()
+		}
+		firstResult <- doErr
+	}()
+
+	<-firstStarted
+	secondReq, err := http.NewRequest("POST", server.URL, bytes.NewBufferString("second"))
+	assert.NoError(t, err)
+	secondResp, err := httpClient.Do(secondReq)
+	assert.NoError(t, err)
+	secondResp.Body.Close()
+	secondToken := append([]byte(nil), transport.GetSessionRecoveryToken().RequestEnc...)
+
+	close(releaseFirst)
+	assert.NoError(t, <-firstResult)
+	assert.Equal(t, secondToken, transport.GetSessionRecoveryToken().RequestEnc,
+		"an older response must not replace the latest token")
+}
+
+func TestTransportInvalidatesRecoveryTokenWhenRequestStarts(t *testing.T) {
+	serverIdentity, err := identity.NewIdentity()
+	assert.NoError(t, err)
+
+	blockedStarted := make(chan struct{})
+	releaseBlocked := make(chan struct{})
+	server := httptest.NewServer(serverIdentity.Middleware()(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, readErr := io.ReadAll(r.Body)
+		assert.NoError(t, readErr)
+		if string(body) == "blocked" {
+			close(blockedStarted)
+			<-releaseBlocked
+		}
+		_, _ = w.Write([]byte("ok"))
+	})))
+	defer server.Close()
+
+	pubIdentity, err := identity.FromPublicKeyHex(serverIdentity.MarshalPublicKeyHex())
+	assert.NoError(t, err)
+	transport, err := NewTransportWithIdentity(pubIdentity)
+	assert.NoError(t, err)
+	httpClient := &http.Client{Transport: transport}
+
+	initialReq, err := http.NewRequest("POST", server.URL, bytes.NewBufferString("initial"))
+	assert.NoError(t, err)
+	initialResp, err := httpClient.Do(initialReq)
+	assert.NoError(t, err)
+	initialResp.Body.Close()
+	assert.NotNil(t, transport.GetSessionRecoveryToken())
+
+	blockedResult := make(chan error, 1)
+	go func() {
+		req, reqErr := http.NewRequest("POST", server.URL, bytes.NewBufferString("blocked"))
+		if reqErr != nil {
+			blockedResult <- reqErr
+			return
+		}
+		resp, doErr := httpClient.Do(req)
+		if doErr == nil {
+			resp.Body.Close()
+		}
+		blockedResult <- doErr
+	}()
+
+	<-blockedStarted
+	assert.Nil(t, transport.GetSessionRecoveryToken())
+	close(releaseBlocked)
+	assert.NoError(t, <-blockedResult)
+	assert.NotNil(t, transport.GetSessionRecoveryToken())
+}
+
+func TestTransportClearsRecoveryTokenAfterStreamFailure(t *testing.T) {
+	serverIdentity, err := identity.NewIdentity()
+	assert.NoError(t, err)
+	server := httptest.NewServer(serverIdentity.Middleware()(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = io.ReadAll(r.Body)
+		_, _ = w.Write([]byte("encrypted response"))
+	})))
+	defer server.Close()
+
+	pubIdentity, err := identity.FromPublicKeyHex(serverIdentity.MarshalPublicKeyHex())
+	assert.NoError(t, err)
+	transport, err := NewTransportWithIdentity(pubIdentity, WithHTTPClient(&http.Client{
+		Transport: corruptingRoundTripper{inner: http.DefaultTransport},
+	}))
+	assert.NoError(t, err)
+
+	req, err := http.NewRequest("POST", server.URL, bytes.NewBufferString("request"))
+	assert.NoError(t, err)
+	resp, err := transport.RoundTrip(req)
+	assert.NoError(t, err)
+	assert.NotNil(t, transport.GetSessionRecoveryToken())
+
+	_, err = io.ReadAll(resp.Body)
+	assert.ErrorContains(t, err, "failed to decrypt chunk")
+	assert.Nil(t, transport.GetSessionRecoveryToken())
+}
+
+func TestOlderStreamFailurePreservesNewerRecoveryToken(t *testing.T) {
+	serverIdentity, err := identity.NewIdentity()
+	assert.NoError(t, err)
+	server := httptest.NewServer(serverIdentity.Middleware()(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = io.ReadAll(r.Body)
+		_, _ = w.Write([]byte("encrypted response"))
+	})))
+	defer server.Close()
+
+	pubIdentity, err := identity.FromPublicKeyHex(serverIdentity.MarshalPublicKeyHex())
+	assert.NoError(t, err)
+	corruptingTransport := &firstResponseCorruptingRoundTripper{inner: http.DefaultTransport}
+	transport, err := NewTransportWithIdentity(pubIdentity, WithHTTPClient(&http.Client{
+		Transport: corruptingTransport,
+	}))
+	assert.NoError(t, err)
+
+	firstReq, err := http.NewRequest("POST", server.URL, bytes.NewBufferString("first"))
+	assert.NoError(t, err)
+	firstResp, err := transport.RoundTrip(firstReq)
+	assert.NoError(t, err)
+	defer firstResp.Body.Close()
+
+	secondReq, err := http.NewRequest("POST", server.URL, bytes.NewBufferString("second"))
+	assert.NoError(t, err)
+	secondResp, err := transport.RoundTrip(secondReq)
+	assert.NoError(t, err)
+	defer secondResp.Body.Close()
+	newerToken := append([]byte(nil), transport.GetSessionRecoveryToken().RequestEnc...)
+
+	_, err = io.ReadAll(firstResp.Body)
+	assert.ErrorContains(t, err, "failed to decrypt chunk")
+	assert.Equal(t, newerToken, transport.GetSessionRecoveryToken().RequestEnc)
+}
+
+func TestOlderStreamCompletionPreservesNewerRecoveryToken(t *testing.T) {
+	serverIdentity, err := identity.NewIdentity()
+	assert.NoError(t, err)
+	server := httptest.NewServer(serverIdentity.Middleware()(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = io.ReadAll(r.Body)
+		_, _ = w.Write([]byte("encrypted response"))
+	})))
+	defer server.Close()
+
+	pubIdentity, err := identity.FromPublicKeyHex(serverIdentity.MarshalPublicKeyHex())
+	assert.NoError(t, err)
+	transport, err := NewTransportWithIdentity(pubIdentity)
+	assert.NoError(t, err)
+
+	firstReq, err := http.NewRequest("POST", server.URL, bytes.NewBufferString("first"))
+	assert.NoError(t, err)
+	firstResp, err := transport.RoundTrip(firstReq)
+	assert.NoError(t, err)
+	defer firstResp.Body.Close()
+
+	secondReq, err := http.NewRequest("POST", server.URL, bytes.NewBufferString("second"))
+	assert.NoError(t, err)
+	secondResp, err := transport.RoundTrip(secondReq)
+	assert.NoError(t, err)
+	defer secondResp.Body.Close()
+	newerToken := append([]byte(nil), transport.GetSessionRecoveryToken().RequestEnc...)
+
+	_, err = io.ReadAll(firstResp.Body)
+	assert.NoError(t, err)
+	assert.Equal(t, newerToken, transport.GetSessionRecoveryToken().RequestEnc)
+}
+
+func TestTransportBoundsProblemDetailsParsing(t *testing.T) {
+	serverIdentity, err := identity.NewIdentity()
+	assert.NoError(t, err)
+	body := `{"type":"` + protocol.KeyConfigProblemType + `","title":"` +
+		strings.Repeat("x", maxProblemDetailsBytes) + `"}`
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", protocol.ProblemJSONMediaType)
+		w.WriteHeader(http.StatusUnprocessableEntity)
+		_, _ = w.Write([]byte(body))
+	}))
+	defer server.Close()
+
+	pubIdentity, err := identity.FromPublicKeyHex(serverIdentity.MarshalPublicKeyHex())
+	assert.NoError(t, err)
+	transport, err := NewTransportWithIdentity(pubIdentity)
+	assert.NoError(t, err)
+
+	req, err := http.NewRequest("POST", server.URL, bytes.NewBufferString("request"))
+	assert.NoError(t, err)
+	resp, err := transport.RoundTrip(req)
+	assert.NoError(t, err)
+	defer resp.Body.Close()
+
+	got, err := io.ReadAll(resp.Body)
+	assert.NoError(t, err)
+	assert.Equal(t, body, string(got))
+}

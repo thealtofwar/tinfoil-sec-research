@@ -1,0 +1,5 @@
+2026/10/07 18:29:13 [enclave] listening on 127.0.0.1:37273 pubkey=517bbbc58b7a073b0a1fbae5a8608e3ecc14b9e21de8435319ab4b3fb1ea5b61
+2026/10/07 18:29:13 [enclave] POST /v1/chat/completions decrypted-body={"messages":[{"content":"my secret prompt","role":"user"}],"model":"llama3-3-70b","user_cache_secret":"d43488742787e56791a386e7a3168e48a28b46cbbe74c36b2ccae425cf1b1b6a"}
+2026/10/07 18:29:13 [enclave] POST /v1/chat/completions decrypted-body={"messages":[{"content":"my secret prompt","role":"user"}],"model":"llama3-3-70b","stream":true,"user_cache_secret":"d43488742787e56791a386e7a3168e48a28b46cbbe74c36b2ccae425cf1b1b6a"}
+2026/10/07 18:29:17 [enclave] POST /v1/chat/completions decrypted-body={"messages":[{"content":"my secret prompt","role":"user"}],"model":"llama3-3-70b","user_cache_secret":"d43488742787e56791a386e7a3168e48a28b46cbbe74c36b2ccae425cf1b1b6a"}
+2026/10/07 18:29:17 [enclave] POST /v1/chat/completions decrypted-body={"messages":[{"content":"my secret prompt","role":"user"}],"model":"llama3-3-70b","stream":true,"user_cache_secret":"d43488742787e56791a386e7a3168e48a28b46cbbe74c36b2ccae425cf1b1b6a"}

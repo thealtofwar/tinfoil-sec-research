@@ -1,0 +1,19 @@
+Verifier (threat-model/impact lens) for candidate url-query-auto-submit-csrf, tinfoil-webapp @ c061681.
+Work tree: ./tinfoil-webapp (copy of the hunter's tree; handler byte-identical to pristine HEAD, checked with diff).
+
+Commands run (source /root/tinfoil-review/env.sh first):
+  cd tinfoil-webapp && npx vitest run tests/verify-impact/impact-bound.test.tsx tests/poc/cross-site-prompt-submit.test.tsx tests/components/url-hash-message-handler.test.tsx --reporter=verbose --silent=false
+  -> output in verify-impact-vitest-output.txt (10/10 pass)
+
+Facts re-derived from the pristine repo (/root/tinfoil-review/repos/tinfoil-webapp):
+  - url-hash-message-handler.tsx:117 (#send=) and :161 (?q=) call onSubmit({text}) with only length (50000) / control-char checks; URL marker is stripped only afterwards. No origin/referrer/user-gesture gate.
+  - chat-interface.tsx:4028-4039 passes the queue's submit (submitMessage) as onSubmit; isReady = auth loaded, config loaded, chat present, model validated, chat not flagged.
+  - newchat.tsx:11-15 documents the auto-send as a feature; vercel.json rewrites /newchat -> newchat.html (production route). Upstream tests assert the auto-send.
+  - Anonymous use is supported: tinfoil-client.ts:458 (signed-out -> no bearer) and :528-535 (/api/keys/chat anonymous session). A signed-out victim bounced to sign-in does NOT get the message after login: redirect-url.ts postAuthRedirectTarget strips ?q=/#send= (my test).
+  - / and /newchat always start a BLANK chat: use-chat-storage.ts:534-551 (never restores the last conversation). Prior turns are therefore never in the attacker-controlled context.
+  - Model context of that fresh chat: server system prompt with {USER_PREFERENCES}/{LANGUAGE}/{TIMEZONE} substituted (use-custom-system-prompt.ts:141-186), rules, GenUI hint, attacker text, time reminder (chat-query-builder.ts:176-186). Project context only in project mode (use-project-system-prompt.ts:23-34) which needs /project/<uuid> (premium, unguessable). Project memory is disabled (project-context.tsx:100-104 commented out; formatMemoryForContext has no consumer).
+  - Exfil channel is the sibling candidate (assistant markdown <img> loads from any https origin: markdown-components.tsx:446-453, vercel.json CSP img-src https:). Referrer-Policy strict-origin-when-cross-origin.
+
+Severity (single deployment mode: hosted static web app chat.tinfoil.sh; same code self-hosted):
+  standalone: AV:N/AC:L/PR:N/UI:R/S:U/C:N/I:L/A:N = 4.3 (nuisance CSRF; visible to victim; documented feature)
+  chained with markdown-remote-image-exfil: AV:N/AC:L/PR:N/UI:R/S:U/C:L/I:L/A:N = 5.4 (leaks personalization profile + timezone + victim IP; not chats/documents/keys)

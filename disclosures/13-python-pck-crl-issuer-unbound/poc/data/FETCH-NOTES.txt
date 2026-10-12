@@ -1,0 +1,6 @@
+Intel PCS observations (fetched 2026-10-08 from api.trustedservices.intel.com, public collateral):
+GET /tdx/certification/v4/tcb?fmspc=50806f000000&tcbEvaluationDataNumber=19 -> HTTP/1.1 410 Gone
+GET /tdx/certification/v4/qe/identity?tcbEvaluationDataNumber=19 -> HTTP/1.1 410 Gone
+GET /tdx/certification/v4/tcb?fmspc=50806f000000 (no param) -> eval number 20 (standard track); 21,22 served on request
+tcbevaluationdatanumbers: 22 (2026-08-11), 21 (2026-02-10), 20 (2025-08-12), 19 (2025-05-13) ...
+tinfoil-python 0.14.0 requests tcbEvaluationDataNumber=19 for both TCB Info and QE Identity (collateral_tdx.py fetch_tcb_info/fetch_qe_identity) -> Intel answers 410 Gone today.

@@ -1,0 +1,14 @@
+# Stage-2 tests re-run with go-tdx-guest v0.3.1 + go-tdx-guest-v0.3.1-strict-toplevel.diff (go.mod replace).
+# The attack tests B/C now FAIL because the forged bodies are rejected; control A still reaches the TCB-status check
+# (signature and parsing of genuine collateral unaffected); D is rejected earlier (duplicate member) instead of at the signature.
+    casefold_test.go:132: genuine Intel collateral: err=TDX TCB info reported by Intel PCS failed TCB status check: no matching TCB level found
+--- PASS: TestA_Control_GenuineCollateralRejected (0.01s)
+    casefold_test.go:147: + unsigned "tcbinfo"/"enclaveidentity" members: err=unable to receive tcbInfo: unexpected or duplicate member "tcbinfo" in PCS response
+    casefold_test.go:149: expected acceptance, got unable to receive tcbInfo: unexpected or duplicate member "tcbinfo" in PCS response
+--- FAIL: TestB_CaseVariantMembersAccepted (0.00s)
+    casefold_test.go:162: + unsigned enclaveidentity.mrsigner=abab..: err=unable to receive tcbInfo: unexpected or duplicate member "tcbinfo" in PCS response
+    casefold_test.go:164: expected the QE MRSIGNER check to use the unsigned value, got unable to receive tcbInfo: unexpected or duplicate member "tcbinfo" in PCS response
+--- FAIL: TestC_UnsignedQeMrsignerIsEnforced (0.00s)
+    casefold_test.go:179: exact duplicate "tcbInfo" (last wins for both decodes): err=unable to receive tcbInfo: unexpected or duplicate member "tcbInfo" in PCS response
+    casefold_test.go:181: expected a signature failure, got unable to receive tcbInfo: unexpected or duplicate member "tcbInfo" in PCS response
+--- FAIL: TestD_Control_ExactDuplicateKeyRejected (0.01s)

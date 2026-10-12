@@ -1,0 +1,7 @@
+[fake ATC] GET /attestation tinfoil-sdk=tinfoil-js/1.2.2
+SecureClient.ready() resolved; securityVerified = [33mtrue[39m
+steps = {"fetchDigest":{"status":"success"},"verifyCode":{"status":"success"},"verifyEnclave":{"status":"success"},"compareMeasurements":{"status":"success"},"verifyCertificate":{"status":"success"}}
+releaseTag = v0.0.38 codeMeasurement = {"type":"https://tinfoil.sh/predicate/snp-tdx-multiplatform/v1","registers":["09ef32acf90fcfeb6206d1a46c13145cef736ebbb83f18eaff680b686232031546ff5fd39c44599699ee8734cbbeb519"]}
+enclaveHost = inference.tinfoil.sh hpkePublicKey = 3565781f4ee796cfb144df2a31a3ae5e87747bb5ba91aafc6b80e2e268b8603d
+baseURL = https://inference.tinfoil.sh/v1/
+fake ATC served [33m1[39m request(s)

@@ -1,0 +1,28 @@
+tinfoil-go ef79d8e (v0.17.0-rc.1); POC_NOW=2026-10-11T12:00:00Z; go version go1.27.1 linux/amd64
+=== RUN   TestPoC07_A_DevBoxReleasePassesProvenanceAndFreshness
+    poc_a_devbox_provenance_test.go:37: ACCEPTED code artifact: repo=tinfoilsh/confidential-ubuntu-tinfoil-config tag=v0.1.1 commit=77c9e646f8535abed7f5a8aa928a10414a6e5bc7
+    poc_a_devbox_provenance_test.go:49:   signed measured config: cvm_admin: true
+    poc_a_devbox_provenance_test.go:49:   signed measured config: ports: ["22:22"]
+    poc_a_devbox_provenance_test.go:49:   signed measured config: upstream-port: 22
+    poc_a_devbox_provenance_test.go:49:   signed measured config: authenticated: false
+    poc_a_devbox_provenance_test.go:56:   freshness witness ACCEPTED: witnessed 2026-10-07T18:03:26Z, valid until 2026-10-14T18:03:26Z, POC_NOW 2026-10-11T12:00:00Z
+    poc_a_devbox_provenance_test.go:62:   control: repo=tinfoilsh/confidential-model-router REJECTED: verifying bundle: verifying: failed to verify certificate identity: no matching CertificateIdentity found, last error: expected SAN value to match regex "^https://github\.com/tinfoilsh/confidential-model-router/\.github/workflows/[^/@]+@refs/tags/[^@]+$", got "https://github.com/tinfoilsh/confidential-ubuntu-tinfoil-config/.github/workflows/tinfoil-release.yml@refs/tags/v0.1.1"
+--- PASS: TestPoC07_A_DevBoxReleasePassesProvenanceAndFreshness (0.02s)
+PASS
+ok  	github.com/tinfoilsh/tinfoil-go/verify/internal/provenance	0.035s
+=== RUN   TestPoC07_B_GatewayCatalogSelectsDevBoxRepo
+    poc_b_catalog_test.go:50: FetchCatalog kept llama3-3-70b -> repo=tinfoilsh/confidential-ubuntu-tinfoil-config hosts=[devbox.example.internal]
+    poc_b_catalog_test.go:53:   control: non-tinfoilsh repo dropped by FetchCatalog (only the org prefix is checked)
+    poc_b_catalog_test.go:60: default policy resolve(llama3-3-70b): replica.ref="tinfoilsh/confidential-ubuntu-tinfoil-config" (the repo VerifyV3 will trust)
+    poc_b_catalog_test.go:67: NewGateway accepted catalog; Serves(llama3-3-70b)=true; enclave handle host=devbox.example.internal repo=tinfoilsh/confidential-ubuntu-tinfoil-config
+    poc_b_catalog_test.go:73:   control: with a ModelPin the substitution is REJECTED: attestation error: model "llama3-3-70b": expected repository "tinfoilsh/confidential-model-router", gateway offered "tinfoilsh/confidential-ubuntu-tinfoil-config"
+--- PASS: TestPoC07_B_GatewayCatalogSelectsDevBoxRepo (0.02s)
+PASS
+ok  	github.com/tinfoilsh/tinfoil-go	0.034s
+=== RUN   TestPoC07_C_VerifyV3AcceptsDevBoxUpToQuoteLayer
+    poc_c_verifyv3_layers_test.go:74: reference values ACCEPTED for repo=tinfoilsh/confidential-ubuntu-tinfoil-config tag=v0.1.1 commit=77c9e646f8535abed7f5a8aa928a10414a6e5bc7; platform-endorsements v0.0.17 (17 machines); FreshnessExpiresAt=2026-10-14T18:03:26Z
+    poc_c_verifyv3_layers_test.go:80: verifyV3(repo=tinfoilsh/confidential-ubuntu-tinfoil-config): rejected only at layer="quote" (placeholder quote): attestation error: no amd-vcek endorsement collateral for the cpu
+    poc_c_verifyv3_layers_test.go:85:   control verifyV3(repo=tinfoilsh/confidential-model-router): rejected at layer="provenance": attestation error: reference values: verifying code measurement: verifying bundle: verifying: failed to verify certificate identity: no matching CertificateIdentity found, last error: expected SAN value to match regex "^https://github\.com/tinfoilsh/confidential-model-router/\.github/workflows/[^/@]+@refs/tags/[^@]+$", got "https://github.com/tinfoilsh/confidential-ubuntu-tinfoil-config/.github/workflows/tinfoil-release.yml@refs/tags/v0.1.1"
+--- PASS: TestPoC07_C_VerifyV3AcceptsDevBoxUpToQuoteLayer (0.07s)
+PASS
+ok  	github.com/tinfoilsh/tinfoil-go/verify	0.091s

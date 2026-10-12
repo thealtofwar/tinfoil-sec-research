@@ -1,0 +1,13 @@
+tinfoil package: /root/tinfoil-review/work/python-sdk-verifier/venv/lib/python3.14/site-packages/tinfoil/__init__.py
+sample quote PCK: issuer CN = Intel SGX PCK Platform CA | serial = 0xbba6c175d838b8df3900cc3411f24f512d104102 | fmspc = 50806f000000
+Intel platform  CRL: issuer CN = Intel SGX PCK Platform CA | revoked = 57 | nextUpdate = 2026-11-07
+Intel processor CRL: issuer CN = Intel SGX PCK Processor CA | revoked = 13 | nextUpdate = 2026-11-07
+a serial Intel revoked under the Platform CA: 0x6fc34e5023e728923435d61aa4b83c618166ad35
+
+[1] fetch_collateral() for a Platform-CA PCK: ca_type='platform' but CRL issuer CN = 'Intel SGX PCK Processor CA' -> ACCEPTED (no issuer binding)
+    cache hit (next session, no network) still serves the processor CRL as 'platform': True
+[2] control: genuine platform CRL -> REJECTED: PCK certificate has been revoked. Serial: 6fc34e5023e728923435d61aa4b83c618166ad35, Revocation date: 2026-10-08 00:07:26+00:00
+[3] attack: processor CRL substituted by the collateral path -> ACCEPTED (revocation bypassed)
+
+SUMMARY: {'fetch_accepts_wrong_ca_crl': True, 'control_rejects': True, 'attack_accepts': True}
+matches expected: True

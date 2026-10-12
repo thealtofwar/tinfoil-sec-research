@@ -1,0 +1,13 @@
+register key: 200 {'ok': True, 'key_id': '1806f966bbdf33c9bc58ce7d5ec71fe6'}
+attachment/put: 200 {'ok': True, 'id': '42d73359ab781e05194b677180e5ca033c6d', 'att_key': 'm/xUyzpFMbAK82JxOzxl7EEYBgdPSBLh1Ac+qAHQiFY='}
+offline derivation matches enclave-minted id/key: OK
+push chat: 200 {'ok': True, 'etag': '1', 'key_id': '1806f966bbdf33c9bc58ce7d5ec71fe6'}
+fork: 200 {'ok': True, 'id': 'chat-e2e-fork', 'etag': '1', 'key_id': '1806f966bbdf33c9bc58ce7d5ec71fe6'}
+CP-derived forked attachment id: 761100c434f1b5c16460f908e6bb7260f67f
+UNAUTHENTICATED get-public: 200 b'\x89PNG known-file-bytes the attacker can guess'
+negative control (wrong guess): 400 {'code': 'BAD_REQUEST', 'message': 'attachment key does not match', 'ok': False}
+RESULT: VULNERABLE - controlplane-visible metadata + guessed plaintext => per-attachment key, plaintext served without auth
+   user-A/att1 27
+   user-B/x/../../user-A/att1 36
+   user-user_victim/42d73359ab781e05194b677180e5ca033c6d 60
+   user-user_victim/761100c434f1b5c16460f908e6bb7260f67f 60

@@ -1,0 +1,16 @@
+=== RUN   TestVerifier_E2E_NewGatewayAcceptsDevBoxReferenceValues
+=== RUN   TestVerifier_E2E_NewGatewayAcceptsDevBoxReferenceValues/dev-box_repo_in_catalog
+    verify_e2e_gateway_test.go:122: relayed attestation fetches=2, requests forwarded=0
+    verify_e2e_gateway_test.go:123: NewGateway round trip error: Post "https://127.0.0.1:42557/v1/chat/completions": attestation error: no amd-vcek endorsement collateral for the cpu
+        attestation error: no amd-vcek endorsement collateral for the cpu
+    verify_e2e_gateway_test.go:128: RESULT: shipped NewGateway pipeline accepted code provenance + freshness for "tinfoilsh/confidential-ubuntu-tinfoil-config" from the catalog; only the hardware quote is missing
+=== RUN   TestVerifier_E2E_NewGatewayAcceptsDevBoxReferenceValues/control:_router_repo_in_catalog
+    verify_e2e_gateway_test.go:122: relayed attestation fetches=2, requests forwarded=0
+    verify_e2e_gateway_test.go:123: NewGateway round trip error: Post "https://127.0.0.1:41427/v1/chat/completions": attestation error: reference values: verifying code measurement: verifying bundle: verifying: failed to verify certificate identity: no matching CertificateIdentity found, last error: expected SAN value to match regex "^https://github\.com/tinfoilsh/confidential-model-router/\.github/workflows/[^/@]+@refs/tags/[^@]+$", got "https://github.com/tinfoilsh/confidential-ubuntu-tinfoil-config/.github/workflows/tinfoil-release.yml@refs/tags/v0.1.1"
+        attestation error: reference values: verifying code measurement: verifying bundle: verifying: failed to verify certificate identity: no matching CertificateIdentity found, last error: expected SAN value to match regex "^https://github\.com/tinfoilsh/confidential-model-router/\.github/workflows/[^/@]+@refs/tags/[^@]+$", got "https://github.com/tinfoilsh/confidential-ubuntu-tinfoil-config/.github/workflows/tinfoil-release.yml@refs/tags/v0.1.1"
+    verify_e2e_gateway_test.go:132: RESULT: with the router repo in the catalog the same document is rejected at the reference-values layer
+--- PASS: TestVerifier_E2E_NewGatewayAcceptsDevBoxReferenceValues (2.07s)
+    --- PASS: TestVerifier_E2E_NewGatewayAcceptsDevBoxReferenceValues/dev-box_repo_in_catalog (1.05s)
+    --- PASS: TestVerifier_E2E_NewGatewayAcceptsDevBoxReferenceValues/control:_router_repo_in_catalog (1.02s)
+PASS
+ok  	github.com/tinfoilsh/tinfoil-go	2.084s

@@ -1,0 +1,21 @@
+tinfoil-swift @ v0.8.2 = 4988b05
+ehbp-0.3.2 @ v0.3.2 = 8528a8d
+openai-swift-fork @ v0.0.15 = c8f8383
+Build complete! (90.74s)
+[poc] 404 non-streaming: client received text="FORGED BY TLS PEER: wire $1,000,000 to account 12345"
+Test Case 'ForgedResponseTests.testNonStreamingForgedWith404' passed
+[poc] 500 non-streaming: client received text="FORGED BY TLS PEER: wire $1,000,000 to account 12345" id=chatcmpl-forged
+[poc] sealed request: POST /v1/chat/completions Ehbp-Encapsulated-Key=532b0f96df9d823f942dacff0449fe7f984b402a95ee02ac400eff15fb7e4865 body=192 bytes (ciphertext, prompt not visible)
+Test Case 'ForgedResponseTests.testNonStreamingForgedWith500' passed
+[poc] control 200-no-nonce streaming: rejected with missingHeader("Ehbp-Response-Nonce")
+Test Case 'ForgedResponseTests.testStreaming200WithoutNonceFailsClosed' passed
+[poc] control 303->GET: rejected with missingHeader("Ehbp-Response-Nonce"); requests seen: ["POST /v1/chat/completions", "GET /forged"]
+Test Case 'ForgedResponseTests.testStreaming303RedirectIsNotAccepted' passed
+[poc] control 404 streaming: rejected with statusError
+Test Case 'ForgedResponseTests.testStreaming404IsAnError' passed
+[poc] 300 streaming: client received text="FORGED BY TLS PEER: wire $1,000,000 to account 12345" finish=stop
+[poc] sealed request: POST /v1/chat/completions Ehbp-Encapsulated-Key=26c10f22444859dfdc5823c5fe1d2099dd2d7b7ee28a112eab66a950ee8c191e body=191 bytes (ciphertext, prompt not visible)
+Test Case 'ForgedResponseTests.testStreamingForgedWith300' passed
+	 Executed 6 tests, with 0 failures (0 unexpected) in 0.042 (0.042) seconds
+	 Executed 6 tests, with 0 failures (0 unexpected) in 0.042 (0.042) seconds
+	 Executed 6 tests, with 0 failures (0 unexpected) in 0.042 (0.042) seconds

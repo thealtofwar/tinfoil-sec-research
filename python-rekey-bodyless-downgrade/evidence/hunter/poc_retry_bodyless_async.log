@@ -1,0 +1,13 @@
+=== control: bytes ===
+  peer saw {'n': 1, 'has_ehbp_header': True, 'body_len': 87}
+  peer saw {'n': 2, 'has_ehbp_header': True, 'body_len': 87}
+  outcome: raised MissingResponseNonceError: MISSING_RESPONSE_NONCE: missing Ehbp-Response-Nonce header
+  OK (async): retry re-encrypted
+=== async generator (one-shot) ===
+  peer saw {'n': 1, 'has_ehbp_header': True, 'body_len': 87}
+  outcome: raised StreamConsumed: Attempted to read or stream some content, but the content has already been streamed. For requests, this could be due to passing a generator as request content, and then receiving a redirect response or a secondary request as part of an authentication flow.For responses, this could be due to attempting to stream the response content more than once.
+=== async iterable object (one-shot, non-generator) ===
+  peer saw {'n': 1, 'has_ehbp_header': True, 'body_len': 87}
+  peer saw {'n': 2, 'has_ehbp_header': False, 'body_len': 0}
+  outcome: status=200 body='{"forged":"ATTACKER-CHOSEN ANSWER"}'
+  VULNERABLE (async): downgraded to bodyless plaintext; forged response accepted

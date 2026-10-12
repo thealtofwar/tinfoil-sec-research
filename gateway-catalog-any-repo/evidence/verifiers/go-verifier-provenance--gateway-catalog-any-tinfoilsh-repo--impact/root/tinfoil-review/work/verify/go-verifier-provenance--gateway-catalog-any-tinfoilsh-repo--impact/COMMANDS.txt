@@ -1,0 +1,13 @@
+# Verifier re-derivation (local only; public GitHub metadata only)
+source /root/tinfoil-review/env.sh
+# pristine copy + hunter's three test files (pocPublicDir re-pointed to ./public)
+cd /root/tinfoil-review/work/verify/go-verifier-provenance--gateway-catalog-any-tinfoilsh-repo--impact/tinfoil-go
+go test ./verify/internal/provenance/ -run TestPoC_DevBoxReleasesPassCodeProvenanceAndFreshness -v -count=1   # ../testA.log
+go test . -run TestPoC_GatewayCatalogSelectsDevBoxRepo -v -count=1                                           # ../testB.log
+go test ./verify/ -run TestPoC_ReferenceValuesAcceptDevBoxRelease -v -count=1                                # ../testC.log
+# public-recheck/: freshness witnesses re-fetched from api.github.com/repos/tinfoilsh/freshness-witness/attestations/sha256:<digest>
+#   confidential-ubuntu-tinfoil-config v0.1.1: 3 witnesses, newest integratedTime 1791396206 (2026-10-07T18:03:26Z) -> fresh
+#   confidential-ubuntu-config v0.1.2: 1 witness, 1791253743 (2026-10-06T02:29:03Z) -> fresh
+#   confidential-sandbox-gpu v0.1.1: 1789437132 (2026-09-15) -> stale; not cvm_admin
+#   confidential-agent-sandbox v0.1.8 (cvm_admin: true, customer product `tinfoil sandbox create`): 1790103054 (2026-09-22T18:50:54Z) -> stale on 2026-10-08
+# ghcr.io anonymous pull: confidential-ubuntu-private(-tinfoil) 403 (private); confidential-ubuntu / confidential-agent-sandbox 200 (public)

@@ -1,0 +1,101 @@
+diff --git a/manager/localharness.go b/manager/localharness.go
+index 8532d4c..df731e7 100644
+--- a/manager/localharness.go
++++ b/manager/localharness.go
+@@ -43,7 +43,7 @@ func InstallFakeEnclaveForTest(em *EnclaveManager, modelName string, ts *httptes
+ 		modelName: modelName,
+ 		tlsKeyFP:  fp,
+ 		proxy:     newProxy(host, fp, modelName, em.billingCollector, cb),
+-		metrics:   newEnclaveMetrics(host, modelName),
++		metrics:   newEnclaveMetrics(host, modelName, fp),
+ 		cb:        cb,
+ 		pricing:   em.ModelPricing,
+ 	})
+diff --git a/manager/manager.go b/manager/manager.go
+index 1b2f277..57edbcb 100644
+--- a/manager/manager.go
++++ b/manager/manager.go
+@@ -332,7 +332,7 @@ func (em *EnclaveManager) addEnclave(
+ 		tlsKeyFP:  verification.TLSPublicKeyFP,
+ 		hpkeKey:   verification.HPKEPublicKey,
+ 		proxy:     newProxy(host, verification.TLSPublicKeyFP, modelName, em.billingCollector, cb),
+-		metrics:   newEnclaveMetrics(host, modelName),
++		metrics:   newEnclaveMetrics(host, modelName, verification.TLSPublicKeyFP),
+ 		cb:        cb,
+ 		pricing:   em.ModelPricing,
+ 	})
+diff --git a/manager/manager_test.go b/manager/manager_test.go
+index 97ab586..a994fa7 100644
+--- a/manager/manager_test.go
++++ b/manager/manager_test.go
+@@ -21,7 +21,7 @@ func newTestEnclave(host string) *Enclave {
+ 	return &Enclave{
+ 		host:    host,
+ 		cb:      newCircuitBreaker(),
+-		metrics: newEnclaveMetrics(host, "test-model"),
++		metrics: newEnclaveMetrics(host, "test-model", ""),
+ 	}
+ }
+ 
+diff --git a/manager/metrics.go b/manager/metrics.go
+index ef8666d..11555c4 100644
+--- a/manager/metrics.go
++++ b/manager/metrics.go
+@@ -14,6 +14,8 @@ import (
+ 
+ 	log "github.com/sirupsen/logrus"
+ 
++	tinfoilClient "github.com/tinfoilsh/tinfoil-go/verifier/client"
++
+ 	"github.com/tinfoilsh/confidential-model-router/config"
+ )
+ 
+@@ -53,12 +55,15 @@ type enclaveMetrics struct {
+ 	latestCollected time.Time
+ }
+ 
+-func newEnclaveMetrics(host, model string) *enclaveMetrics {
++// tlsKeyFP is the attested TLS public-key fingerprint; the scrape carries an
++// admin bearer, so it must be pinned like every other hop to the enclave.
++func newEnclaveMetrics(host, model, tlsKeyFP string) *enclaveMetrics {
+ 	return &enclaveMetrics{
+ 		host:  host,
+ 		model: model,
+ 		client: &http.Client{
+-			Timeout: 5 * time.Second,
++			Timeout:   5 * time.Second,
++			Transport: &tinfoilClient.TLSBoundRoundTripper{ExpectedPublicKey: tlsKeyFP},
+ 		},
+ 	}
+ }
+diff --git a/manager/metrics_test.go b/manager/metrics_test.go
+index 1c219eb..d6fb126 100644
+--- a/manager/metrics_test.go
++++ b/manager/metrics_test.go
+@@ -19,7 +19,7 @@ import (
+ // newTestMetrics returns an enclaveMetrics with the given overload config
+ // installed directly, without starting the polling goroutine.
+ func newTestMetrics(host string, cfg *config.OverloadConfig) *enclaveMetrics {
+-	m := newEnclaveMetrics(host, "test-model")
++	m := newEnclaveMetrics(host, "test-model", "")
+ 	m.cfgMu.Lock()
+ 	m.cfg = cfg
+ 	m.cfgMu.Unlock()
+@@ -232,7 +232,7 @@ func TestSetConfig_ReevaluatesFlagAgainstNewMarks(t *testing.T) {
+ 	}))
+ 	defer ts.Close()
+ 
+-	m := newEnclaveMetrics(strings.TrimPrefix(ts.URL, "https://"), "test-model")
++	m := newEnclaveMetrics(strings.TrimPrefix(ts.URL, "https://"), "test-model", "")
+ 	m.client = ts.Client()
+ 	m.cfgMu.Lock()
+ 	m.cfg = &config.OverloadConfig{MaxRequestsWaiting: 8}
+@@ -273,7 +273,7 @@ func TestSetConfig_WarnsOnOutOfRangeClearMark(t *testing.T) {
+ 	hook := logtest.NewGlobal()
+ 	defer hook.Reset()
+ 
+-	m := newEnclaveMetrics(strings.TrimPrefix(ts.URL, "https://"), "test-model")
++	m := newEnclaveMetrics(strings.TrimPrefix(ts.URL, "https://"), "test-model", "")
+ 	m.client = ts.Client()
+ 	m.setConfig(&config.OverloadConfig{
+ 		MaxRequestsWaiting:   16,

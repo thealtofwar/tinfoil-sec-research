@@ -1,0 +1,12 @@
+# Verifier commands (2026-10-08), all local, pristine repos untouched.
+# 1. Diff hunter's tree vs pristine (only tests/poc added):
+diff -rq /root/tinfoil-review/repos/tinfoil-webapp /root/tinfoil-review/work/webapp-render-xss/tinfoil-webapp --exclude=node_modules --exclude=.next --exclude=.git
+#    -> "Only in work/webapp-render-xss/tinfoil-webapp/tests: poc"
+# 2. Copy hunter's tree (incl. node_modules) into this dir:
+cp -a /root/tinfoil-review/work/webapp-render-xss/tinfoil-webapp /root/tinfoil-review/work/verify/webapp-render-xss--url-query-auto-submit-csrf--poc/tinfoil-webapp
+# 3. Re-run hunter's PoC exactly as documented (output: hunter-poc-rerun.txt, 2/2 pass):
+cd /root/tinfoil-review/work/verify/webapp-render-xss--url-query-auto-submit-csrf--poc/tinfoil-webapp && source /root/tinfoil-review/env.sh && npx vitest run tests/poc/cross-site-prompt-submit.test.tsx --reporter=verbose --silent=false
+# 4. My deeper PoC: URL marker -> REAL useMessageQueue (unmodified) -> handleQuery, no DOM events (output: verify-url-to-handlequery-output.txt, 3/3 pass incl. negative control):
+npx vitest run tests/poc/verify-url-to-handlequery.test.tsx --reporter=verbose --silent=false
+# 5. Re-run hunter's rendering-half test (image exfil channel) (output: markdown-image-exfil-rerun.txt, 4/4 pass):
+npx vitest run tests/poc/markdown-image-exfil.test.tsx --reporter=verbose --silent=false

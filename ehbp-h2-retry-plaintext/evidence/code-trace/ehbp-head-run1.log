@@ -1,0 +1,9 @@
+=== RUN   TestPoCVerify3_HEAD_GoAwayLeaksPlaintext
+    zz_poc_verify3_test.go:162: client: HTTP/2.0 200 OK decrypted="enclave decrypted 60 bytes"
+    zz_poc_verify3_test.go:165: ALPN per TLS connection: [h2 h2]
+    zz_poc_verify3_test.go:168: intermediary stream#0 ehbp-key-present=true body(80B)="\x00\x00\x00Ly\xc6\xe6\xf4\x8b\xa7\xeb<#\xf5b\x87\xee\xba\xd8\xc7\xf9\xd6b%߰\xf4`\xb3G\xafb\x85\u05fff\x12\xdbnm{\x8d@\xf4\x83\xf9c\xe6\x17\x93\x03\xf1\xd6\x05h\xcb\xdb\xe3\x04z\x97\a{\xe3\xfe\x82\x1a\xfc\xf2\xb7G\x04g\x06S\x05]\xeb\x97\x18"
+    zz_poc_verify3_test.go:168: intermediary stream#1 ehbp-key-present=true body(60B)="CONFIDENTIAL body for EHBP HEAD: account 4111-1111-1111-1111"
+    zz_poc_verify3_test.go:176: RESULT: EHBP HEAD client leaked plaintext on HTTP/2 GOAWAY retry; client call succeeded
+--- PASS: TestPoCVerify3_HEAD_GoAwayLeaksPlaintext (0.01s)
+PASS
+ok  	github.com/tinfoilsh/encrypted-http-body-protocol/client	0.012s

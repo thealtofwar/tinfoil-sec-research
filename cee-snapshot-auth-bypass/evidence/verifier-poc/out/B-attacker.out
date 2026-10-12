@@ -1,0 +1,3 @@
+[attacker] t= 0.05s HTTP 200 (no X-Code-Execution-Container-Auth-Token sent)
+[attacker] t= 0.05s read first 1048576 bytes, now stalling 6.0s with the request still open
+[attacker] t= 7.25s done, 128008202 bytes total

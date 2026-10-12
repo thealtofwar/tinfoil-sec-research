@@ -1,0 +1,17 @@
+=== OpenAI SDK chat.completions.create (JSON body) ===
+  peer saw {'n': 1, 'path': '/v1/chat/completions', 'has_ehbp_header': True, 'body_len': 87}
+  peer saw {'n': 2, 'path': '/v1/chat/completions', 'has_ehbp_header': True, 'body_len': 87}
+  outcome: raised MissingResponseNonceError: MISSING_RESPONSE_NONCE: missing Ehbp-Response-Nonce header
+  OK (retry re-encrypted; forged nonce-less 200 rejected)
+=== OpenAI SDK audio.transcriptions.create(file=open(...)) (multipart, seekable file) ===
+  peer saw {'n': 1, 'path': '/v1/audio/transcriptions', 'has_ehbp_header': True, 'body_len': 353}
+  peer saw {'n': 2, 'path': '/v1/audio/transcriptions', 'has_ehbp_header': True, 'body_len': 353}
+  outcome: raised MissingResponseNonceError: MISSING_RESPONSE_NONCE: missing Ehbp-Response-Nonce header
+  OK (retry re-encrypted; forged nonce-less 200 rejected)
+=== OpenAI SDK audio.transcriptions.create(file=<pipe>) (multipart, NON-seekable file) ===
+  outcome: raised OSError: [Errno 29] Illegal seek
+=== make_secure_http_client().post(content=BytesIO) (one-shot body) ===
+  peer saw {'n': 1, 'path': '/v1/chat/completions', 'has_ehbp_header': True, 'body_len': 47}
+  peer saw {'n': 2, 'path': '/v1/chat/completions', 'has_ehbp_header': False, 'body_len': 0}
+  outcome: returned '{"id": "forged", "object": "chat.completion", "created": 1, "model": "m", "choices": [{"index": 0, "message": {"role": "assistant", "content": "ATTACKER-CHOSEN ANSWER"}, "finish_reason": "stop"}]}'
+  VULNERABLE (downgraded to bodyless plaintext; forged response accepted)

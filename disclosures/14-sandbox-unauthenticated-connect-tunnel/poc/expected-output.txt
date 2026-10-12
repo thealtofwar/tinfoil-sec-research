@@ -1,0 +1,28 @@
+cvmimage @ 58b08de; sandbox config @ d78ec38
+=== RUN   TestPoC_SandboxTunnelNeedsNoCredential
+    poc_sandbox_tunnel_test.go:105: confidential-agent-sandbox publishes 16 ports: 22 3000 3001 3306 3389 4000 5000 5173 5432 5900 6379 8000 8001 8888 9000 9222
+    poc_sandbox_tunnel_test.go:130: port    22: anonymous CONNECT -> 200, service replied "+PONG (stub on published port 22)"
+    poc_sandbox_tunnel_test.go:130: port  3000: anonymous CONNECT -> 200, service replied "+PONG (stub on published port 3000)"
+    poc_sandbox_tunnel_test.go:130: port  3001: anonymous CONNECT -> 200, service replied "+PONG (stub on published port 3001)"
+    poc_sandbox_tunnel_test.go:130: port  3306: anonymous CONNECT -> 200, service replied "+PONG (stub on published port 3306)"
+    poc_sandbox_tunnel_test.go:130: port  3389: anonymous CONNECT -> 200, service replied "+PONG (stub on published port 3389)"
+    poc_sandbox_tunnel_test.go:130: port  4000: anonymous CONNECT -> 200, service replied "+PONG (stub on published port 4000)"
+    poc_sandbox_tunnel_test.go:130: port  5000: anonymous CONNECT -> 200, service replied "+PONG (stub on published port 5000)"
+    poc_sandbox_tunnel_test.go:130: port  5173: anonymous CONNECT -> 200, service replied "+PONG (stub on published port 5173)"
+    poc_sandbox_tunnel_test.go:130: port  5432: anonymous CONNECT -> 200, service replied "+PONG (stub on published port 5432)"
+    poc_sandbox_tunnel_test.go:130: port  5900: anonymous CONNECT -> 200, service replied "+PONG (stub on published port 5900)"
+    poc_sandbox_tunnel_test.go:130: port  6379: anonymous CONNECT -> 200, service replied "+PONG (stub on published port 6379)"
+    poc_sandbox_tunnel_test.go:130: port  8000: anonymous CONNECT -> 200, service replied "+PONG (stub on published port 8000)"
+    poc_sandbox_tunnel_test.go:130: port  8001: anonymous CONNECT -> 200, service replied "+PONG (stub on published port 8001)"
+    poc_sandbox_tunnel_test.go:130: port  8888: anonymous CONNECT -> 200, service replied "+PONG (stub on published port 8888)"
+    poc_sandbox_tunnel_test.go:130: port  9000: anonymous CONNECT -> 200, service replied "+PONG (stub on published port 9000)"
+    poc_sandbox_tunnel_test.go:130: port  9222: anonymous CONNECT -> 200, service replied "+PONG (stub on published port 9222)"
+    poc_sandbox_tunnel_test.go:138: RESULT: an unauthenticated internet client reached a service on all 16 published sandbox ports through the shim tunnel
+    poc_sandbox_tunnel_test.go:143: port  8080 (not published): anonymous CONNECT -> 404 (Not Found)
+--- PASS: TestPoC_SandboxTunnelNeedsNoCredential (0.09s)
+=== RUN   TestPoC_SandboxTunnelControls
+    poc_sandbox_tunnel_test.go:155: control authenticated:true + validator, keyless CONNECT -> 401
+    poc_sandbox_tunnel_test.go:163: control authenticated:true, no validator, keyless CONNECT -> 404 (tunnels disabled)
+--- PASS: TestPoC_SandboxTunnelControls (0.01s)
+PASS
+ok  	tinfoil/cmd/shim	0.106s

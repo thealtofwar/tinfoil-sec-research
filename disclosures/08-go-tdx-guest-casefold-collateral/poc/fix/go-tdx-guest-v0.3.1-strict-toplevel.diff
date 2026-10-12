@@ -1,0 +1,63 @@
+--- a/verify/verify.go	2026-10-06 18:24:34.424255800 +0000
++++ b/verify/verify.go	2026-10-11 19:25:23.203654596 +0000
+@@ -330,6 +330,40 @@
+ 	return crl, nil
+ }
+ 
++
++// strictTopLevel requires body to be a JSON object whose member names are exactly
++// want (case-sensitive), each appearing once. (fix check for the case-fold differential)
++func strictTopLevel(body []byte, want ...string) error {
++	dec := json.NewDecoder(bytes.NewReader(body))
++	if t, err := dec.Token(); err != nil || t != json.Delim('{') {
++		return fmt.Errorf("PCS response is not a JSON object")
++	}
++	seen := map[string]bool{}
++	for dec.More() {
++		t, err := dec.Token()
++		if err != nil {
++			return err
++		}
++		k := t.(string)
++		ok := false
++		for _, w := range want {
++			ok = ok || k == w
++		}
++		if !ok || seen[k] {
++			return fmt.Errorf("unexpected or duplicate member %q in PCS response", k)
++		}
++		seen[k] = true
++		var skip json.RawMessage
++		if err := dec.Decode(&skip); err != nil {
++			return err
++		}
++	}
++	if len(seen) != len(want) {
++		return fmt.Errorf("PCS response members %v, want %v", seen, want)
++	}
++	return nil
++}
++
+ func bodyToRawMessage(name string, body []byte) ([]byte, error) {
+ 	if len(body) == 0 {
+ 		return nil, fmt.Errorf("%q is empty", name)
+@@ -388,6 +422,9 @@
+ 	collateral.TcbInfoIssuerIntermediateCertificate = tcbInfoIntermediateCert
+ 	collateral.TcbInfoIssuerRootCertificate = tcbInfoRootCert
+ 
++	if err := strictTopLevel(body, tcbInfoPhrase, "signature"); err != nil {
++		return &trust.AttestationRecreationErr{Msg: err.Error()}
++	}
+ 	if err := json.Unmarshal(body, &collateral.TdxTcbInfo); err != nil {
+ 		return &trust.AttestationRecreationErr{
+ 			Msg: fmt.Sprintf("unable to unmarshal tcbInfo response: %v", err),
+@@ -423,6 +460,9 @@
+ 	collateral.QeIdentityIssuerIntermediateCertificate = qeIdentityIntermediateCert
+ 	collateral.QeIdentityIssuerRootCertificate = qeIdentityRootCert
+ 
++	if err := strictTopLevel(body, enclaveIdentityPhrase, "signature"); err != nil {
++		return &trust.AttestationRecreationErr{Msg: err.Error()}
++	}
+ 	if err := json.Unmarshal(body, &collateral.QeIdentity); err != nil {
+ 		return &trust.AttestationRecreationErr{
+ 			Msg: fmt.Sprintf("unable to unmarshal QeIdentity response: %v", err),

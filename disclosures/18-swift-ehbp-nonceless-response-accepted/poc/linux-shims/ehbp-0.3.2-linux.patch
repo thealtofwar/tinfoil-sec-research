@@ -1,0 +1,135 @@
+diff --git a/swift/Sources/EHBP/Client.swift b/swift/Sources/EHBP/Client.swift
+index ff07c9e..1f39554 100644
+--- a/swift/Sources/EHBP/Client.swift
++++ b/swift/Sources/EHBP/Client.swift
+@@ -1,4 +1,7 @@
+ import Foundation
++#if canImport(FoundationNetworking)
++import FoundationNetworking  // PoC-only: Linux Foundation splits networking into its own module
++#endif
+ 
+ /// Streaming EHBP client for making encrypted HTTP requests
+ public final class EHBPClient: @unchecked Sendable {
+diff --git a/swift/Sources/EHBP/LinuxURLSessionBytesShim.swift b/swift/Sources/EHBP/LinuxURLSessionBytesShim.swift
+new file mode 100644
+index 0000000..a84f19c
+--- /dev/null
++++ b/swift/Sources/EHBP/LinuxURLSessionBytesShim.swift
+@@ -0,0 +1,117 @@
++// PoC harness only. swift-corelibs-foundation (Linux) has no
++// `URLSession.bytes(for:)`, which the EHBP client uses for streaming responses
++// on Apple platforms. This file supplies an equivalent built on the delegate
++// API so the unmodified client logic can be exercised on Linux. It is compiled
++// only where FoundationNetworking exists, so it has no effect on Apple builds.
++#if canImport(FoundationNetworking)
++import Foundation
++import FoundationNetworking
++
++public struct LinuxAsyncBytes: AsyncSequence, @unchecked Sendable {
++    public typealias Element = UInt8
++
++    final class Source: @unchecked Sendable {
++        private var iterator: AsyncThrowingStream<Data, Error>.AsyncIterator
++        private var buffer = [UInt8]()
++        private var offset = 0
++
++        init(stream: AsyncThrowingStream<Data, Error>) {
++            iterator = stream.makeAsyncIterator()
++        }
++
++        func next() async throws -> UInt8? {
++            while offset >= buffer.count {
++                guard let chunk = try await iterator.next() else { return nil }
++                buffer = [UInt8](chunk)
++                offset = 0
++            }
++            let byte = buffer[offset]
++            offset += 1
++            return byte
++        }
++    }
++
++    public struct AsyncIterator: AsyncIteratorProtocol, @unchecked Sendable {
++        let source: Source
++        public mutating func next() async throws -> UInt8? {
++            try await source.next()
++        }
++    }
++
++    let source: Source
++    public let task: URLSessionDataTask
++
++    public func makeAsyncIterator() -> AsyncIterator {
++        AsyncIterator(source: source)
++    }
++}
++
++private final class StreamingDelegate: NSObject, URLSessionDataDelegate, @unchecked Sendable {
++    private let lock = NSLock()
++    private var responseContinuation: CheckedContinuation<URLResponse, Error>?
++    private var bodyContinuation: AsyncThrowingStream<Data, Error>.Continuation?
++    let body: AsyncThrowingStream<Data, Error>
++
++    override init() {
++        var continuation: AsyncThrowingStream<Data, Error>.Continuation?
++        body = AsyncThrowingStream<Data, Error> { continuation = $0 }
++        super.init()
++        bodyContinuation = continuation
++    }
++
++    func awaitResponse() async throws -> URLResponse {
++        try await withCheckedThrowingContinuation { continuation in
++            lock.lock()
++            responseContinuation = continuation
++            lock.unlock()
++        }
++    }
++
++    func urlSession(
++        _ session: URLSession,
++        dataTask: URLSessionDataTask,
++        didReceive response: URLResponse,
++        completionHandler: @escaping (URLSession.ResponseDisposition) -> Void
++    ) {
++        lock.lock()
++        let continuation = responseContinuation
++        responseContinuation = nil
++        lock.unlock()
++        continuation?.resume(returning: response)
++        completionHandler(.allow)
++    }
++
++    func urlSession(_ session: URLSession, dataTask: URLSessionDataTask, didReceive data: Data) {
++        bodyContinuation?.yield(data)
++    }
++
++    func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
++        lock.lock()
++        let continuation = responseContinuation
++        responseContinuation = nil
++        lock.unlock()
++        if let error {
++            continuation?.resume(throwing: error)
++            bodyContinuation?.finish(throwing: error)
++        } else {
++            continuation?.resume(throwing: URLError(.badServerResponse))
++            bodyContinuation?.finish()
++        }
++        session.finishTasksAndInvalidate()
++    }
++}
++
++extension URLSession {
++    /// Linux stand-in for Apple's `URLSession.bytes(for:)`: returns once the
++    /// response headers arrive, and streams the body as it is received.
++    public func bytes(for request: URLRequest) async throws -> (LinuxAsyncBytes, URLResponse) {
++        let delegate = StreamingDelegate()
++        let session = URLSession(configuration: configuration, delegate: delegate, delegateQueue: nil)
++        let task = session.dataTask(with: request)
++        async let response = delegate.awaitResponse()
++        task.resume()
++        let received = try await response
++        return (LinuxAsyncBytes(source: .init(stream: delegate.body), task: task), received)
++    }
++}
++#endif

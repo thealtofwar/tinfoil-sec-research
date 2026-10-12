@@ -1,0 +1,6 @@
+=== RUN   TestVerify_DevBoxDocumentFailsOnlyAtQuoteLayer
+    verifier_layer_devbox_test.go:57: catalog repo "tinfoilsh/confidential-ubuntu-tinfoil-config": verifyV3 rejected at layer="quote" err=attestation error: no amd-vcek endorsement collateral for the cpu
+    verifier_layer_devbox_test.go:63: control repo router: rejected at layer="provenance"
+--- PASS: TestVerify_DevBoxDocumentFailsOnlyAtQuoteLayer (0.03s)
+PASS
+ok  	github.com/tinfoilsh/tinfoil-go/verify	0.050s

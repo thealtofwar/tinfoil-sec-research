@@ -1,0 +1,13 @@
+confidential-model-router @ 6494b7d
+applied fix-pin-metrics.patch
+time="2026-10-11T19:33:47Z" level=error msg="proxy error" enclave=gpu-1.inf6.example error="certificate fingerprint mismatch" model=llama3-3-70b reason=tls_mismatch
+    poc_metrics_unpinned_test.go:167: control: proxied inference request through pinned transport -> HTTP 502 {"error":{"message":"The server had an error while processing your request.","type":"server_error","param":null,"code":"upstream_error"}}
+    poc_metrics_unpinned_test.go:174: attested enclave TLS key fingerprint: 64b578a6647ee2173a11d0517e3836c01ff38ca3393f26391cad4593469f0695
+    poc_metrics_unpinned_test.go:175: attacker TLS key fingerprint:         1d8b11597a60b8add2742f333cda2bfa49ca79d5cd28a5899f070be02099070e
+    poc_metrics_unpinned_test.go:176: attacker received 0 request(s)
+    poc_metrics_unpinned_test.go:194: FIXED: pinned metrics poller sent nothing to the attacker (0 request(s) with the key)
+--- PASS: TestPoC_MetricsPollLeaksAdminKeyToUnpinnedPeer (2.52s)
+PASS
+ok  	github.com/tinfoilsh/confidential-model-router/manager	2.542s
+full manager suite with the fix:
+ok  	github.com/tinfoilsh/confidential-model-router/manager	2.931s

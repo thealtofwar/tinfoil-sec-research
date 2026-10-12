@@ -1,0 +1,14 @@
+@tinfoilsh/verifier 1.2.2 | @freedomofpress/sigstore-browser 0.1.14 | node v24.21.0 | now 2026-10-11T19:17:04.914Z
+control: unmodified production fixture                     -> ACCEPTED securityVerified=true
+control: checkpoint signature tampered                     -> rejected (Invalid checkpoint signature) securityVerified=false
+control: SET (inclusionPromise) tampered                   -> rejected (Failed to verify the inclusion promise in the provided bundle.) securityVerified=false
+ATTACK: no SET, no checkpoint, self-made proof, t=1769122000 -> ACCEPTED securityVerified=true
+bound: same, integratedTime 1s after cert notAfter         -> rejected (Artifact signing was logged outside of the certificate validity.) securityVerified=false
+
+@tinfoilsh/verifier 1.2.2 | @freedomofpress/sigstore-browser 0.1.15 | node v24.21.0 | now 2026-10-11T19:17:06.710Z
+control: unmodified production fixture                     -> ACCEPTED securityVerified=true
+control: checkpoint signature tampered                     -> rejected (Invalid checkpoint signature) securityVerified=false
+control: SET (inclusionPromise) tampered                   -> rejected (Failed to verify the inclusion promise in the provided bundle.) securityVerified=false
+ATTACK: no SET, no checkpoint, self-made proof, t=1769122000 -> rejected (Invalid bundle: inclusion proof) securityVerified=false
+bound: same, integratedTime 1s after cert notAfter         -> rejected (Invalid bundle: inclusion proof) securityVerified=false
+

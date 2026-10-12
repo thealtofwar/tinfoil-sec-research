@@ -1,0 +1,11 @@
+=== RUN   TestPoCVerify3_TinfoilProxyLeaksPromptToGateway
+time="2026-10-07T18:30:09Z" level=info msg="Upstream request complete" method=POST path=/v1/chat/completions size=-1 status="200 OK" target="127.0.0.1:41053"
+    poc_verify3_proxy_test.go:246: local client got 200 OK body={"id":"c1","object":"chat.completion","created":1,"model":"m","choices":[{"index":0,"finish_reason":"stop","message":{"role":"assistant","content":"reply-from-genuine-replica"}}]}
+    poc_verify3_proxy_test.go:250: gateway TLS conns=1 ALPN=[h2]
+    poc_verify3_proxy_test.go:258: gateway stream#0 conn=1 id=1 POST /v1/chat/completions x-tinfoil-seal=replica.example ehbp-key-present=true body(189B)="\x00\x00\x00\xb9\vt\xcb^\x11\xf2\a\xb86\xea7?Ҳ\t\xaf\xe8\x9a\x13\xbd7\x9c2}!\xba\xf0PyXV\xcf\xd2\xe7\xee;\xa4\xea\x0e/A\x9d\x8eL\x0f\xadө\x84\x9e\x8d\xc2Q\xaaA\x13\xed\x84Ѧ\x10\xc0O7#\\_O\n\xbe\xe51\xcf|Z\x14-!\xf2\xe1\xe1\xd6w\xa9\xc4\x10\xda\xfe\xce\x16=y\x9a|Q_\x9a\xfe\xba\x91\x7f\x81\x85\xedg\xe1\v\rO\x17=\xd7Q\x0e\xebf\x88\x15G\xaf\xa5\xb4C\xd3V\xdc\xcfq\xc7r\x03a\xd8|CX\xad{\xc92ԗc\xa8m\x13\x87\"\xebg;\x93'\x8e'\xf3\x13b\x1en\x11?\tf\x9c<N\x80gT\x14\xe1\xc2`\x03\xeed\xb2 _i\xc4呶"
+    poc_verify3_proxy_test.go:258: gateway stream#1 conn=1 id=3 POST /v1/chat/completions x-tinfoil-seal=replica.example ehbp-key-present=true body(169B)="{\"cache_salt\":\"cX83zb1N-JGhyw3yuOXwAiU9CA5BjGVEW27NeQe8lLw\",\"messages\":[{\"role\":\"user\",\"content\":\"CONFIDENTIAL-PROMPT via tinfoil-proxy: patient Jane Roe\"}],\"model\":\"m\"}"
+    poc_verify3_proxy_test.go:265: genuine replica handled 1 request(s): ["{\"cache_salt\":\"cX83zb1N-JGhyw3yuOXwAiU9CA5BjGVEW27NeQe8lLw\",\"messages\":[{\"role\":\"user\",\"content\":\"CONFIDENTIAL-PROMPT via tinfoil-proxy: patient Jane Roe\"}],\"model\":\"m\"}"]
+    poc_verify3_proxy_test.go:273: RESULT: tinfoil-proxy (tinfoil-go v0.16.1 + EHBP v0.3.2) disclosed the plaintext prompt and cache_salt to the gateway; the local client saw a normal 200
+--- PASS: TestPoCVerify3_TinfoilProxyLeaksPromptToGateway (0.01s)
+PASS
+ok  	github.com/tinfoilsh/tinfoil-proxy	0.017s

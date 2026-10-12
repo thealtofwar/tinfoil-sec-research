@@ -1,0 +1,8 @@
+tinfoil-js @tinfoilsh/verifier 1.2.2 | sigstore-browser 0.1.14 | now = 2026-10-08T01:10:10.285Z
+control: unmodified fixture                                            -> ACCEPTED  securityVerified=true verifyCode=success
+control: checkpoint present but signature tampered                     -> rejected: Sigstore code bundle verification failed / Invalid checkpoint signature  securityVerified=false verifyCode=failed
+control: inclusionPromise present but SET tampered                     -> rejected: Sigstore code bundle verification failed / Failed to verify the inclusion promise in the provided bundle.  securityVerified=false verifyCode=failed
+ATTACK: no SET, no checkpoint, self-made Merkle proof, bogus logId/logIndex/integratedTime -> ACCEPTED  securityVerified=true verifyCode=success
+ATTACK variant: integratedTime = cert notAfter (1769122322)            -> ACCEPTED  securityVerified=true verifyCode=success
+negative: integratedTime outside cert window (1769122323) still rejected -> rejected: Sigstore code bundle verification failed / Artifact signing was logged outside of the certificate validity.  securityVerified=false verifyCode=failed
+negative: mediaType v0.1, no promise, no proof -> rejected             -> rejected: Sigstore code bundle verification failed / Bundle must have either an inclusion promise or an inclusion proof.  securityVerified=false verifyCode=failed

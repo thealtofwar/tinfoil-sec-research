@@ -1,0 +1,13 @@
+confidential-model-router @ 6494b7d
+time="2026-10-11T19:33:42Z" level=error msg="proxy error" enclave=gpu-1.inf6.example error="certificate fingerprint mismatch" model=llama3-3-70b reason=tls_mismatch
+    poc_metrics_unpinned_test.go:167: control: proxied inference request through pinned transport -> HTTP 502 {"error":{"message":"The server had an error while processing your request.","type":"server_error","param":null,"code":"upstream_error"}}
+    poc_metrics_unpinned_test.go:174: attested enclave TLS key fingerprint: 4beb407199ba1ae24199a6f4b5d11dd78194b610c926397bac022cee526c3980
+    poc_metrics_unpinned_test.go:175: attacker TLS key fingerprint:         e7d2127d135c3c961463015b022d77a50672087326a31b9b76cbbd5dda2e35e6
+    poc_metrics_unpinned_test.go:176: attacker received 3 request(s)
+    poc_metrics_unpinned_test.go:179:   #0 path=/metrics authorization="Bearer tk_ADMIN_METRICS_API_KEY_SECRET_do_not_leak" (client presented no certificate; server key is the attacker's)
+    poc_metrics_unpinned_test.go:179:   #1 path=/metrics authorization="Bearer tk_ADMIN_METRICS_API_KEY_SECRET_do_not_leak" (client presented no certificate; server key is the attacker's)
+    poc_metrics_unpinned_test.go:179:   #2 path=/metrics authorization="Bearer tk_ADMIN_METRICS_API_KEY_SECRET_do_not_leak" (client presented no certificate; server key is the attacker's)
+    poc_metrics_unpinned_test.go:200: VULNERABLE: METRICS_API_KEY ("tk_ADMIN_METRICS_API_KEY_SECRET_do_not_leak") was sent to a TLS peer whose key (e7d2127d135c3c96...) is not the attested key (4beb407199ba1ae2...); the pinned proxy path to the same host failed closed (502)
+--- PASS: TestPoC_MetricsPollLeaksAdminKeyToUnpinnedPeer (2.52s)
+PASS
+ok  	github.com/tinfoilsh/confidential-model-router/manager	2.546s

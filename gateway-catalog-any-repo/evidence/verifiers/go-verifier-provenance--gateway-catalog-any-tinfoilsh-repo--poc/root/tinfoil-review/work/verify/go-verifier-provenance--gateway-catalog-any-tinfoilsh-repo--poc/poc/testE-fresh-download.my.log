@@ -1,0 +1,6 @@
+=== RUN   TestVerifier_FreshDownloadDevBoxBundlesVerify
+    verifier_fresh_download_test.go:24: code: repo=tinfoilsh/confidential-ubuntu-tinfoil-config tag=v0.1.1 commit=77c9e646f8535abed7f5a8aa928a10414a6e5bc7 subject=tinfoil-deployment.json
+    verifier_fresh_download_test.go:28: freshness witness accepted: witnessed 2026-10-07T18:03:26Z, expires 2026-10-14T18:03:26Z (now 2026-10-08T01:28:11Z)
+--- PASS: TestVerifier_FreshDownloadDevBoxBundlesVerify (0.02s)
+PASS
+ok  	github.com/tinfoilsh/tinfoil-go/verify/internal/provenance	0.031s

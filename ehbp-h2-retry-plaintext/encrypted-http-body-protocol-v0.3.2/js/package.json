@@ -1,0 +1,59 @@
+{
+  "name": "ehbp",
+  "version": "0.3.2",
+  "description": "JavaScript client for Encrypted HTTP Body Protocol (EHBP)",
+  "main": "./dist/cjs/index.js",
+  "module": "./dist/esm/index.js",
+  "types": "./dist/esm/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/esm/index.d.ts",
+      "import": "./dist/esm/index.js",
+      "require": "./dist/cjs/index.js"
+    }
+  },
+  "scripts": {
+    "clean": "node -e \"const fs = require('node:fs'); for (const dir of ['dist/esm', 'dist/cjs']) fs.rmSync(dir, { recursive: true, force: true })\"",
+    "build": "npm run clean && npm run build:esm && npm run build:cjs",
+    "build:esm": "tsc -p tsconfig.esm.json && echo '{\"type\":\"module\"}' > dist/esm/package.json",
+    "build:cjs": "tsc -p tsconfig.cjs.json && echo '{\"type\":\"commonjs\"}' > dist/cjs/package.json",
+    "build:browser": "node build-browser.js",
+    "build:all": "npm run build && npm run build:browser",
+    "dev": "tsc --watch",
+    "test": "npm run build && node --test dist/esm/test/*.test.js",
+    "prepack": "npm run build",
+    "test:integration": "node dist/esm/test/streaming.integration.js",
+    "example": "node --experimental-strip-types examples/example.ts",
+    "serve": "node serve.js"
+  },
+  "keywords": [
+    "hpke",
+    "encryption",
+    "http",
+    "security",
+    "ehbp"
+  ],
+  "author": "Tinfoil",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tinfoilsh/encrypted-http-body-protocol.git"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "@panva/hpke-noble": "^1.0.3",
+    "hpke": "^1.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "esbuild": "^0.25.9",
+    "typescript": "^5.0.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ]
+}

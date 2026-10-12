@@ -1,0 +1,28 @@
+
+=== control: content=bytes (replayable) ===
+  peer saw request {'n': 1, 'path': '/v1/chat/completions', 'has_ehbp_header': True, 'transfer_encoding': 'chunked', 'content_length': None, 'body_len': 100, 'authorization': 'Bearer tinfoil-test-key'}
+  peer saw request {'n': 2, 'path': '/v1/chat/completions', 'has_ehbp_header': True, 'transfer_encoding': 'chunked', 'content_length': None, 'body_len': 100, 'authorization': 'Bearer tinfoil-test-key'}
+  client outcome: raised MissingResponseNonceError: MISSING_RESPONSE_NONCE: missing Ehbp-Response-Nonce header
+  re-attestations: 2
+  OK: retry was re-encrypted; forged nonce-less 200 rejected
+
+=== content=open(file,'rb') (file-like, one-shot) ===
+  peer saw request {'n': 1, 'path': '/v1/chat/completions', 'has_ehbp_header': True, 'transfer_encoding': 'chunked', 'content_length': None, 'body_len': 100, 'authorization': 'Bearer tinfoil-test-key'}
+  peer saw request {'n': 2, 'path': '/v1/chat/completions', 'has_ehbp_header': False, 'transfer_encoding': None, 'content_length': '0', 'body_len': 0, 'authorization': 'Bearer tinfoil-test-key'}
+  client outcome: status=200 body='{"id": "forged", "object": "chat.completion", "choices": [{"index": 0, "message": {"role": "assistant", "content": "ATTACKER-CHOSEN ANSWER"}, "finish_reason": "stop"}]}'
+  re-attestations: 2
+  VULNERABLE: retry went out as an unencrypted bodyless POST and the forged plaintext 200 was accepted
+
+=== content=iter([...]) (non-generator iterator, one-shot) ===
+  peer saw request {'n': 1, 'path': '/v1/chat/completions', 'has_ehbp_header': True, 'transfer_encoding': 'chunked', 'content_length': None, 'body_len': 100, 'authorization': 'Bearer tinfoil-test-key'}
+  peer saw request {'n': 2, 'path': '/v1/chat/completions', 'has_ehbp_header': False, 'transfer_encoding': None, 'content_length': '0', 'body_len': 0, 'authorization': 'Bearer tinfoil-test-key'}
+  client outcome: status=200 body='{"id": "forged", "object": "chat.completion", "choices": [{"index": 0, "message": {"role": "assistant", "content": "ATTACKER-CHOSEN ANSWER"}, "finish_reason": "stop"}]}'
+  re-attestations: 2
+  VULNERABLE: retry went out as an unencrypted bodyless POST and the forged plaintext 200 was accepted
+
+=== content=io.BytesIO (seekable file-like; httpx read()s it once) ===
+  peer saw request {'n': 1, 'path': '/v1/chat/completions', 'has_ehbp_header': True, 'transfer_encoding': 'chunked', 'content_length': None, 'body_len': 100, 'authorization': 'Bearer tinfoil-test-key'}
+  peer saw request {'n': 2, 'path': '/v1/chat/completions', 'has_ehbp_header': False, 'transfer_encoding': None, 'content_length': '0', 'body_len': 0, 'authorization': 'Bearer tinfoil-test-key'}
+  client outcome: status=200 body='{"id": "forged", "object": "chat.completion", "choices": [{"index": 0, "message": {"role": "assistant", "content": "ATTACKER-CHOSEN ANSWER"}, "finish_reason": "stop"}]}'
+  re-attestations: 2
+  VULNERABLE: retry went out as an unencrypted bodyless POST and the forged plaintext 200 was accepted

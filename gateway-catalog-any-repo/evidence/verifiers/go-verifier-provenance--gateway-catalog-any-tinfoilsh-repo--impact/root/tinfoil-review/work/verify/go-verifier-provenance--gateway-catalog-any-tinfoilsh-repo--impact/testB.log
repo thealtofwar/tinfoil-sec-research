@@ -1,0 +1,8 @@
+=== RUN   TestPoC_GatewayCatalogSelectsDevBoxRepo
+    poc_catalog_test.go:52: FetchCatalog kept: model=llama3-3-70b repo=tinfoilsh/confidential-ubuntu-tinfoil-config hosts=[devbox.attacker.internal] (trusted()=true)
+    poc_catalog_test.go:59: gatewayPolicy.resolve: hosts=[devbox.attacker.internal] replica.ref="tinfoilsh/confidential-ubuntu-tinfoil-config"
+    poc_catalog_test.go:69: enclave.Handle for devbox.attacker.internal will run verify.VerifyV3(doc, nonce, "tinfoilsh/confidential-ubuntu-tinfoil-config"): the SAN regex becomes ^https://github\.com/tinfoilsh/confidential-ubuntu-tinfoil-config/\.github/workflows/[^/@]+@refs/tags/[^@]+$
+    poc_catalog_test.go:70: VULNERABLE: an unpinned NewGateway client lets the gateway pick which tinfoilsh/* code it must trust for "llama3-3-70b"
+--- PASS: TestPoC_GatewayCatalogSelectsDevBoxRepo (0.01s)
+PASS
+ok  	github.com/tinfoilsh/tinfoil-go	0.023s
